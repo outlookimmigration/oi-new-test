@@ -5,8 +5,9 @@
 <title>Outlook Immigration</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<style>:root{--navy:#0f2240;--blue:#1d6fd8;--green:#16a34a;--amber:#d97706;--red:#dc2626;--teal:#0f766e;--purp:#7c3aed;--grey:#64748b;--border:#e2e8f0;--text:#0f172a;--t2:#475569;--t3:#94a3b8}
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,sans-serif;background:#f1f5f9;color:var(--text)}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>:root{--navy:#0f2240;--blue:#1d6fd8;--green:#16a34a;--amber:#d97706;--red:#dc2626;--teal:#0f766e;--purp:#7c3aed;--grey:#64748b;--border:#e2e8f0;--text:#0f172a;--t2:#475569;--t3:#94a3b8;--shadow:0 1px 2px rgba(15,34,64,.06),0 1px 3px rgba(15,34,64,.05);--shadow-md:0 6px 16px rgba(15,34,64,.10);--shadow-lg:0 14px 32px rgba(15,34,64,.14)}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,system-ui,sans-serif;background:#eef2f7;color:var(--text);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .hdr{background:#fff;height:64px;border-bottom:3px solid var(--navy);display:flex;align-items:center;padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:0 1px 6px rgba(0,0,0,.08)}
 .hl{display:flex;align-items:center;gap:4px;flex:1;justify-content:center;flex-direction:column}.hl img{height:38px;object-fit:contain}
 .hn{font-size:16px;font-weight:700;color:var(--navy)}.hs{font-size:10px;color:var(--grey);letter-spacing:.5px}
@@ -17,24 +18,28 @@
 .nav{background:#fff;border-bottom:1px solid var(--border);display:flex;padding:0 10px;overflow-x:auto;gap:2px}
 .nt{padding:11px 14px;border:none;background:none;font-family:Inter,sans-serif;font-size:12px;font-weight:500;color:var(--grey);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
 .nt.active{color:var(--navy);border-bottom-color:var(--navy);font-weight:600}
+.nt:hover:not(.active){color:var(--t2);background:#f1f5f9}
 .pg{padding:12px;max-width:1200px;margin:0 auto}.pn{display:none}.pn.active{display:block}
 .sbar{border-radius:10px;padding:9px 13px;font-size:13px;margin-bottom:10px;display:none;align-items:center;gap:8px;font-weight:500}
 .sbar.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;display:flex}
 .sbar.err{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;display:flex}
 .sbar.info{background:#e8f0fc;border:1px solid #bfdbfe;color:#1d6fd8;display:flex}
-.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
+.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
 .ctitle{font-size:11px;font-weight:600;color:var(--grey);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px;justify-content:space-between}
 .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
-.sc{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;border-left:4px solid transparent;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.sc{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;border-left:4px solid transparent;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+.sc:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
 .sl{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
 .sv{font-size:26px;font-weight:700;line-height:1.1;letter-spacing:-0.5px}.ss{font-size:12px;color:#64748b;margin-top:5px}
 .cg2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.cc{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px}
+.cc{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
 .cct{font-size:11px;font-weight:600;color:var(--t2);margin-bottom:8px}.cw{height:180px;position:relative}
 .flts{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
 .fsel{background:#fff;border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-family:Inter,sans-serif;font-size:12px;color:var(--t2);outline:none;cursor:pointer}
 .fbtn{padding:5px 11px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:12px;cursor:pointer;color:var(--grey);transition:all .15s;font-family:Inter,sans-serif}
 .fbtn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.fbtn:hover:not(.active){border-color:#cbd5e1;background:#f8fafc;color:var(--t2)}
+.fsel:hover{border-color:#cbd5e1}
 .alert-section{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
 .alert-scroll{max-height:220px;overflow-y:auto}
 .alert-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:.5px solid var(--border)}
@@ -52,7 +57,7 @@
 .fld{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;position:relative}
 .fld label{font-size:11px;color:var(--grey);font-weight:600}.rq{color:var(--red)}
 .inp{background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;font-family:Inter,sans-serif;font-size:13px;width:100%;outline:none;color:var(--text);transition:border .15s}
-.inp:focus{border-color:var(--blue);background:#fff}
+.inp:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(29,111,216,.12)}
 textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
 .fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ful{grid-column:1/-1}
 .acl{position:absolute;top:calc(100% + 3px);left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:300;max-height:220px;overflow-y:auto;display:none}
@@ -63,14 +68,14 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
 .stit{font-size:11px;font-weight:700;color:#16a34a;margin-bottom:3px}.sit{font-size:12px;color:#166534;margin-bottom:2px}
 .cbox{background:#e8f0fc;border:1px solid #bfdbfe;border-radius:8px;padding:9px 12px;margin:7px 0;display:none}
 .ef{display:none;margin-top:4px}
-.btn{padding:10px;border-radius:8px;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;width:100%;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{opacity:.9}.btn-navy:disabled{background:#cbd5e1;cursor:not-allowed}
-.btn-teal{background:var(--teal);color:#fff}.btn-teal:hover{opacity:.9}
+.btn{padding:11px;border-radius:10px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:var(--shadow)}
+.btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:#1b3a66;box-shadow:var(--shadow-md);transform:translateY(-1px)}.btn-navy:disabled{background:#cbd5e1;cursor:not-allowed;box-shadow:none;transform:none}
+.btn-teal{background:var(--teal);color:#fff}.btn-teal:hover{background:#0e8a7d;box-shadow:var(--shadow-md);transform:translateY(-1px)}
 .ri{padding:7px 12px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:8px;font-size:12px}
 .ri:last-child{border-bottom:none}.rt{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap;flex-shrink:0}
 .ph{color:#fff;border-radius:12px;padding:16px;margin-bottom:10px}.ph-n{font-size:18px;font-weight:700;margin-bottom:3px}.ph-s{font-size:12px;opacity:.75}
 .pg4{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.pc{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px}
+.pc{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
 .pl{font-size:10px;font-weight:600;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
 .pr-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:.5px solid var(--border);font-size:12px}
 .pr-row:last-child{border-bottom:none}.pk{color:var(--t3)}.pv{font-weight:500;text-align:right;max-width:65%}
@@ -154,9 +159,9 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
   #login-box{background:#fff;border-radius:16px;padding:40px 36px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center}
   #login-box img{max-width:220px;max-height:70px;object-fit:contain;margin-bottom:16px}
   #login-box p{font-size:13px;color:#64748b;margin:0 0 24px;font-weight:500}
-  #login-pwd{width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;transition:border .2s}
-  #login-pwd:focus{border-color:#1d3a6e}
-  #login-btn{width:100%;padding:12px;background:#0f2240;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
+  #login-email,#login-pwd{width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;transition:border .2s,box-shadow .2s;font-family:inherit}
+  #login-email:focus,#login-pwd:focus{border-color:#1d3a6e;box-shadow:0 0 0 3px rgba(29,58,110,.12)}
+  #login-btn{width:100%;padding:12px;background:#0f2240;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
   #login-btn:hover{background:#1d3a6e}
   #login-err{color:#dc2626;font-size:12px;margin-top:8px;display:none}
 
@@ -212,7 +217,13 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
     }
     btn.disabled=false; btn.textContent='Sign In';
   }
+  function doLogout(){
+    sessionStorage.removeItem('oi_sb_token');
+    sessionStorage.removeItem('oi_sb_email');
+    location.reload();
+  }
   window.doLogin=doLogin;
+  window.doLogout=doLogout;
   if(sessionStorage.getItem('oi_sb_token')){
     document.getElementById('login-screen').style.display='none';
   }
@@ -227,7 +238,7 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
 </div>
 </div></div>
   </div>
-  <div class="hr"><span class="sd" id="sd"></span><span id="stxt">Ready</span><button onclick="loadFromExcel(false)" style="margin-left:auto;padding:2px 10px;font-size:11px;background:#1e3a5f;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600">&#8635; Refresh</button></div>
+  <div class="hr"><span class="sd" id="sd"></span><span id="stxt">Ready</span><button onclick="loadFromExcel(false)" style="margin-left:auto;padding:2px 10px;font-size:11px;background:#1e3a5f;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600">&#8635; Refresh</button><button onclick="doLogout()" style="padding:3px 11px;font-size:11px;background:#fff;color:#dc2626;border:1px solid #fecaca;border-radius:6px;cursor:pointer;font-weight:600;transition:all .15s">Log out</button></div>
 </div>
 <div class="nav">
   <button class="nt active" onclick="swTab('dash',this)">&#128202; Dashboard</button>
@@ -354,7 +365,7 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
       <div class="fld"><label>Action Required</label><input class="inp" id="nact" placeholder="e.g. Chase documents"></div>
       <div class="fld"><label>Action Due Date (auto creates due date)</label><input class="inp" type="date" id="ndue"></div>
     </div>
-    <button class="btn btn-navy" id="nbtn" onclick="syncNote()">Save &amp; Sync to Excel</button>
+    <button class="btn btn-navy" id="nbtn" onclick="syncNote()">Save</button>
   </div>
 </div>
 
@@ -392,7 +403,7 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
           <div class="fld ful"><label>Follow Up Date (auto creates due date)</label><input class="inp" type="date" id="efup"></div>
           <div class="fld ful"><label>Notes / Situation</label><textarea class="inp" id="enotes" style="min-height:50px" placeholder="Visa situation, urgency..."></textarea></div>
         </div>
-        <button class="btn btn-navy" id="elb" onclick="syncLead()">Save Lead &amp; Sync to Excel</button>
+        <button class="btn btn-navy" id="elb" onclick="syncLead()">Save Lead</button>
       </div>
       <div id="e-stu-fields" style="display:none">
         <div class="dv"></div>
@@ -408,7 +419,7 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
           <div class="fld"><label>Visa Application Required?</label><select class="inp" id="evr"><option>No</option><option>Yes</option></select></div>
           <div class="fld ful"><label>Notes</label><textarea class="inp" id="esn" style="min-height:45px"></textarea></div>
         </div>
-        <button class="btn btn-teal" id="esb" onclick="syncStudent()">Save Student &amp; Sync to Excel</button>
+        <button class="btn btn-teal" id="esb" onclick="syncStudent()">Save Student</button>
       </div>
     </div>
   </div>
@@ -1956,8 +1967,8 @@ async function syncNote(){
   var isConv = CTRIG.indexOf(cat)>=0 && isLead;
   var isStuEnrol = cat==='Enrolled as Student' && isLead;
   var btn=document.getElementById('nbtn');
-  btn.disabled=true; btn.textContent='Syncing...';
-  setSS('syncing','Syncing...'); showMsg('Saving to Excel...','info');
+  btn.disabled=true; btn.textContent='Saving...';
+  setSS('syncing','Saving...'); showMsg('Saving...','info');
   var ok=0, fail=0;
   var fnId='FN-'+ref+'-'+Date.now();
   var fnObj={id:fnId,ref,client,date:TODAY,time:TIME,category:cat,note,action};
@@ -1982,7 +1993,7 @@ async function syncNote(){
       if(r.sp==='chg'){ var amtChg=document.getElementById('nchg')?document.getElementById('nchg').value:''; if(amtChg){ caseUpd.amount_charged=Number(amtChg); hasUpd=true; } }
       if(r.sp==='lod'){
         var lodVal=document.getElementById('nlod')?document.getElementById('nlod').value:'';
-        if(!lodVal){ showMsg('Lodgement date is required for Application Lodged','err'); btn.disabled=false; btn.textContent='Save & Sync to Excel'; return; }
+        if(!lodVal){ showMsg('Lodgement date is required for Application Lodged','err'); btn.disabled=false; btn.textContent='Save'; return; }
         caseUpd.lodgement_date=lodVal;
         caseUpd.submitted=lodVal;
         hasUpd=true;
@@ -2002,7 +2013,7 @@ async function syncNote(){
         var caseOutcome = cx.status||'';
         if(!['Granted','Refused'].includes(caseOutcome)){
           showMsg('Please record Visa Granted or Visa Refused before finalising this case','err');
-          btn.disabled=false; btn.textContent='Save & Sync to Excel'; return;
+          btn.disabled=false; btn.textContent='Save'; return;
         }
         var finRow={case_ref:ref,client_name:client,phone:cx.phone||'',email:cx.email||'',assigned_to:cx.assigned||cx.assigned_to||'',visa_type:cx.visa_type||cx.visaType||cx.visa||'',submitted:cx.submitted||'',lodgement_date:cx.lodgement_date||cx.lodgementDate||'',decision_date:cx.decision_date||cx.decisionDate||'',form956:cx.form956||'',service_agreement:cx.service_agreement||cx.serviceAgreement||'',file_notes:cx.file_notes||cx.fileNotes||'',invoice_raised:cx.invoice_raised||cx.invoiceRaised||'',receipt_issued:cx.receipt_issued||cx.receiptIssued||'',amount_charged:cx.amount_charged||cx.amountCharged||0,amount_received:cx.amount_received||cx.amountReceived||0,balance:(cx.amount_charged||cx.amountCharged||0)-(cx.amount_received||cx.amountReceived||0),referred_by:cx.referred_by||cx.referredBy||'',family_group:cx.family_group||cx.familyGroup||'',sourced_by:cx.sourced_by||cx.sourcedBy||'',outcome:caseOutcome,finalised_date:TODAY,notes:note};
         var uf=await callPA({secret:'dandona2026',action:'append',table:'finalise',data:finRow},client+' finalised','finalise'); uf?ok++:fail++;
@@ -2139,7 +2150,7 @@ async function syncNote(){
     showMsg(client+' enrolled as student successfully','ok');
     ok+=3;
   }
-  btn.disabled=false; btn.textContent='Save & Sync to Excel';
+  btn.disabled=false; btn.textContent='Save';
   // Update in-memory case immediately so profile panel reflects changes
   if(!isLead&&!isStu&&!fail){
     var ci=CASES.findIndex(function(c){return (c.case_ref||c.ref)===ref;});
@@ -2176,7 +2187,7 @@ async function syncNote(){
     if(convCase && panel3) renderCaseProfile(convCase, panel3);
   }
   if(!fail){
-    setSS('live',ok+' synced'); showMsg(ok+' update'+(ok!==1?'s':'')+' synced to Excel','ok');
+    setSS('live',ok+' synced'); showMsg(ok+' update'+(ok!==1?'s':'')+' saved','ok');
     ['nnote','nact','ndue','nref','nvd','nimr','namt','nchg','nlod','ndd','nfud','ncn','nnid'].forEach(id=>{var el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('ns').value=''; document.getElementById('ncat').value='';
     document.getElementById('nsbox').style.display='none'; document.getElementById('ncbox').style.display='none';
@@ -2251,15 +2262,15 @@ async function syncLead(){
   var id='L'+Date.now();
   var lead={id,name,dob:document.getElementById('edob').value,phone:document.getElementById('eph').value,email:document.getElementById('eem').value,visa,nationality:document.getElementById('enat').value,oo:document.getElementById('eoo').value,visaExpiry:document.getElementById('evexp').value,source:document.getElementById('esrc').value,assigned:document.getElementById('easgn').value,followup:document.getElementById('efup').value,notes:document.getElementById('enotes').value,stage:'New',created:TODAY};
   aLeads.push(lead); var sl=JSON.parse(localStorage.getItem('oi_leads')||'[]'); sl.push(lead); localStorage.setItem('oi_leads',JSON.stringify(sl));
-  var btn=document.getElementById('elb'); btn.disabled=true; btn.textContent='Syncing...';
-  setSS('syncing','Adding lead...'); showMsg('Syncing...','info');
+  var btn=document.getElementById('elb'); btn.disabled=true; btn.textContent='Saving...';
+  setSS('syncing','Adding lead...'); showMsg('Saving...','info');
   var ok=0,fail=0;
   var l1=await callPA({secret:'dandona2026',action:'append',table:'leads',data:{id,name,dob:lead.dob,phone:lead.phone,email:lead.email,nationality:lead.nationality,visa_interest:visa,source:lead.source,assigned:lead.assigned,follow_up_date:lead.followup,notes:lead.notes,stage:'New',created_at:TODAY,onshore_offshore:lead.oo,visa_expiry:lead.visaExpiry}},name+' new lead','leads'); l1?ok++:fail++;
   var fnLead={id:'FN-'+id+'-001',ref:id,client:name,date:TODAY,time:TIME,category:'Lead Enquiry',note:'New lead. Visa: '+visa+'. Nationality: '+(lead.nationality||'TBC')+'. Source: '+(lead.source||'TBC')+'. Assigned: '+lead.assigned+'.',action:''};
   aFN.push(fnLead); localStorage.setItem('oi_fn',JSON.stringify(aFN));
   var l2=await callPA({secret:'dandona2026',action:'append',table:'file_notes',data:fnLead},name+' Lead Enquiry','file_notes'); l2?ok++:fail++;
   if(lead.followup){ var leadDays=Math.ceil((new Date(lead.followup)-new Date(TODAY))/86400000); var l3=await callPA({secret:'dandona2026',action:'append',table:'due_dates',data:{id:'DD-'+id+'-001',ref:id,client:name,assigned:lead.assigned||'',task:'Follow up: '+name,type:'Follow-up',due:lead.followup,days_left:leadDays,priority:'Medium',status:'Pending',notes:''}},name+' follow up','due_dates'); l3?ok++:fail++; }
-  btn.disabled=false; btn.textContent='Save Lead & Sync to Excel';
+  btn.disabled=false; btn.textContent='Save Lead';
   // Save file note if notes entered
   var leadNote = document.getElementById('enotes')?document.getElementById('enotes').value.trim():'';
   if(!fail && leadNote){
@@ -2334,8 +2345,8 @@ async function syncStudent(){
   var id='ST'+Date.now();
   var followupStu=document.getElementById('efus')?document.getElementById('efus').value:''; var s={id,name,dob:document.getElementById('edob').value,phone:document.getElementById('eph').value,email:document.getElementById('eem').value,nationality:document.getElementById('enat').value,oo:document.getElementById('eoo').value,institute:inst,course,start:document.getElementById('ecs').value,end:document.getElementById('ece').value,visaExpiry:document.getElementById('esvx').value,assigned:document.getElementById('easgn').value,source:document.getElementById('esrc').value,visaRequired:document.getElementById('evr').value,notes:document.getElementById('esn').value,followup:followupStu,status:'New Student',commNotes:'',nextInvoice:'',caseRef:'',type:'student'};
   aStu.push(s); var ns=JSON.parse(localStorage.getItem('oi_new_students')||'[]'); ns.push(s); localStorage.setItem('oi_new_students',JSON.stringify(ns));
-  var btn=document.getElementById('esb'); btn.disabled=true; btn.textContent='Syncing...';
-  setSS('syncing','Adding student...'); showMsg('Syncing...','info');
+  var btn=document.getElementById('esb'); btn.disabled=true; btn.textContent='Saving...';
+  setSS('syncing','Adding student...'); showMsg('Saving...','info');
   var ok=0,fail=0;
   var s1=await callPA({secret:'dandona2026',action:'append',table:'students',data:{id,name,dob:s.dob,phone:s.phone,email:s.email,nationality:s.nationality,onshore_offshore:s.oo,assigned:s.assigned,institute:inst,course,course_start:s.start,course_end:s.end,visa_expiry:s.visaExpiry,status:'New Student',visa_required:s.visaRequired,source:s.source,notes:s.notes,created_at:TODAY}},name+' new student','students'); s1?ok++:fail++;
   // If Visa Required = Yes, auto-create a Lead for visa application tracking
@@ -2350,7 +2361,7 @@ async function syncStudent(){
   var fnStu={id:'FN-'+id+'-001',ref:id,client:name,date:TODAY,time:TIME,category:'Student Update',note:'New student. Institute: '+inst+'. Course: '+course+'. Assigned: '+s.assigned+'. Visa required: '+s.visaRequired+'.',action:''};
   aFN.push(fnStu); localStorage.setItem('oi_fn',JSON.stringify(aFN));
   var s2=await callPA({secret:'dandona2026',action:'append',table:'file_notes',data:fnStu},name+' Student','file_notes'); s2?ok++:fail++;
-  btn.disabled=false; btn.textContent='Save Student & Sync to Excel';
+  btn.disabled=false; btn.textContent='Save Student';
   // Save file note if notes entered
   var stuNote = document.getElementById('esn')?document.getElementById('esn').value.trim():'';
   if(!fail && stuNote){
