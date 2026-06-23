@@ -542,7 +542,7 @@ async function loadFromExcel(silent){
   try{
     var d = await supaReadAll();
     // ── CASES ──
-    if(d.cases && d.cases.length){
+    if(d.cases){
       var mc = d.cases.filter(function(c){ return c.case_ref && c.case_ref.trim && c.case_ref.trim()!==''; }).map(function(c){
         var ac = Number(c.amount_charged||c.amountCharged||0);
         var ar = Number(c.amount_received||c.amountReceived||0);
@@ -609,7 +609,7 @@ async function loadFromExcel(silent){
       CASES.splice(0,CASES.length,...mc);
     }
     // ── LEADS ──
-    if(d.leads && d.leads.length){
+    if(d.leads){
       var ml = d.leads.filter(function(l){ return l.id && l.id.trim && l.id.trim()!==''; }).map(function(l){
         return {
           id:              l.id||'',
@@ -638,9 +638,10 @@ async function loadFromExcel(silent){
         };
       });
       aLeads.splice(0,aLeads.length,...ml);
+      localStorage.setItem('oi_leads',JSON.stringify(aLeads));
     }
     // ── STUDENTS ──
-    if(d.students && d.students.length){
+    if(d.students){
       var ms = d.students.filter(function(s){ return s.id && s.id.trim && s.id.trim()!==''; }).map(function(s){
         return {
           id:              s.id||'',
@@ -680,9 +681,10 @@ async function loadFromExcel(silent){
         };
       });
       aStu.splice(0,aStu.length,...ms);
+      localStorage.setItem('oi_new_students',JSON.stringify(aStu));
     }
     // ── DUE DATES ──
-    if(d.dueDates && d.dueDates.length){
+    if(d.dueDates){
       var mdd = d.dueDates.filter(function(x){ return x.id && x.id.trim()!==''; }).map(function(x){
         // Normalise due date — convert Excel serial numbers to YYYY-MM-DD
         var rawDue = x.due||'';
@@ -731,7 +733,7 @@ async function loadFromExcel(silent){
     }
     loadCustomOptions();
     // ── FINALISED ──
-    if(d.finalised && d.finalised.length){
+    if(d.finalised){
       var mfin = d.finalised.filter(function(x){ return (x['Case Ref']||x.case_ref||'').trim()!==''; }).map(function(x){
         return {
           case_ref:       x['Case Ref']||x.case_ref||'',
@@ -761,7 +763,7 @@ async function loadFromExcel(silent){
       localStorage.setItem('oi_fin',JSON.stringify(window.__finalised));
     }
     // ── FILE NOTES ──
-    if(d.fileNotes && d.fileNotes.length){
+    if(d.fileNotes){
       var mfn = d.fileNotes.filter(function(n){ return (n.note||n.ref) && (n.ref||n.id); }).map(function(n){
         // Convert Excel serial date to YYYY-MM-DD
         var rawDate = n.date||'';
@@ -789,13 +791,8 @@ async function loadFromExcel(silent){
           updated:  n.updated||'',
         };
       });
-      // Merge Excel notes with in-memory notes — don't wipe notes that haven't been saved to Excel yet
-      var excelIds={};
-      mfn.forEach(function(n){ if(n.id) excelIds[n.id]=true; });
-      var memOnly=aFN.filter(function(n){ return n.id && !excelIds[n.id]; });
-      var merged=mfn.concat(memOnly);
-      var seen={}; merged=merged.filter(function(n){ var k=n.id||(n.ref+n.date+n.note); if(seen[k]) return false; seen[k]=true; return true; });
-      aFN.splice(0,aFN.length,...merged);
+      // Mirror the database exactly (DB is the source of truth)
+      aFN.splice(0,aFN.length,...mfn);
       localStorage.setItem('oi_fn',JSON.stringify(aFN));
     }
     rDash(); rClients(); rRec();
