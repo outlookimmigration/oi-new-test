@@ -1012,7 +1012,8 @@ function swTab(id,btn){
 
 // ── FILTER CASES ──
 function fC(){
-  let c=CASES.filter(x=>x.status!=='Finalised');
+  var _finRefs={}; (window.__finalised||[]).forEach(function(f){ if(f.case_ref) _finRefs[f.case_ref]=1; });
+  let c=CASES.filter(x=>x.status!=='Finalised' && !_finRefs[(x.case_ref||x.ref)]);
   const yr = document.getElementById('dy')  ? document.getElementById('dy').value  : 'all';
   const mo = document.getElementById('dm')  ? document.getElementById('dm').value  : 'all';
   const st = document.getElementById('ds')  ? document.getElementById('ds').value  : 'all';
@@ -1538,7 +1539,9 @@ function rClients(){
 
   var all = [];
   if(type==='all'||type==='case'){
+    var _finRefsC={}; (window.__finalised||[]).forEach(function(f){ if(f.case_ref) _finRefsC[f.case_ref]=1; });
     CASES.forEach(function(c){
+      if(c.status==='Finalised' || _finRefsC[(c.case_ref||c.ref)]) return; // shown under Finalised instead
       var x = {};
       for(var k in c) x[k]=c[k];
       x._t='Case'; x._orig=c;
@@ -2378,6 +2381,9 @@ async function syncNote(){
       else bill0.commissions.push({date:TODAY,amount:amtV});
       su.billing=JSON.stringify(bill0);
       stuObj0.billing=su.billing;
+      // Logging the commission action resolves the pending "invoice due" reminder, unless a new Next Invoice Date is set below
+      su.next_invoice_due=(nid&&nid.trim())?nid:'';
+      stuObj0.next_invoice_due=su.next_invoice_due; stuObj0.nextInvoice=su.next_invoice_due;
     }
     if(cn)  su.comm_notes=cn;
     if(nid){
@@ -2400,6 +2406,7 @@ async function syncNote(){
       // Re-render profile panel
       var panel=document.getElementById('cl-profile');
       if(panel && panel.innerHTML) renderStuProfile(aStu[idx2], panel);
+      rDash();
     }
   }
   if(dueDate&&action){
