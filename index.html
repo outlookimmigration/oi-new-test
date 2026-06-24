@@ -257,17 +257,17 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
   <div id="d-visa-expiry" style="margin-top:8px"></div>
   <div class="flts">
     <select class="fsel" id="dy" onchange="rDash()">
-      <option value="all">All Years</option>
+      <option value="all" selected>All Years</option>
       <option value="2024">2024</option>
       <option value="2025">2025</option>
-      <option value="2026" selected>2026</option>
+      <option value="2026">2026</option>
       <option value="2027">2027</option>
     </select>
     <select class="fsel" id="dm" onchange="rDash()">
-      <option value="all">All Months</option>
+      <option value="all" selected>All Months</option>
       <option value="1">January</option>
       <option value="2">February</option>
-      <option value="3" selected>March</option>
+      <option value="3">March</option>
       <option value="4">April</option>
       <option value="5">May</option>
       <option value="6">June</option>
@@ -358,6 +358,7 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
       <div class="fld"><label>Course <span class="rq">*</span></label><input class="inp" id="nescourse" placeholder="e.g. Master of Business"></div>
     </div></div>
     <div class="ef" id="ef-stu"><div class="fg2"><div class="fld"><label>Next Invoice Date</label><input class="inp dpick" type="text" id="nnid"></div><div class="fld"><label>Commission Notes</label><input class="inp" id="ncn" placeholder="e.g. Commission paid"></div></div></div>
+    <div class="ef" id="ef-comm"><div class="fld"><label>Amount <span class="rq">*</span></label><input class="inp" type="number" id="ncomm" placeholder="e.g. 1500"></div></div>
     <div class="dv"></div>
     <div class="fld"><label>Note <span class="rq">*</span></label><textarea class="inp" id="nnote" placeholder="What happened? Key details..."></textarea></div>
     <div class="fg2">
@@ -402,6 +403,7 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
           <div class="fld ful"><label>Follow Up Date (auto creates due date)</label><input class="inp dpick" type="text" id="efup"></div>
           <div class="fld ful"><label>Notes / Situation</label><textarea class="inp" id="enotes" style="min-height:50px" placeholder="Visa situation, urgency..."></textarea></div>
         </div>
+        <div id="e-fg-wrap" style="display:none"><div class="fld"><label>Family Group</label><select class="inp" id="e-fg" onchange="document.getElementById('e-fg-newwrap').style.display=(this.value==='__new__')?'block':'none'"></select><div id="e-fg-newwrap" style="display:none;margin-top:6px"><input class="inp" id="e-fg-new" placeholder="New group name"></div></div></div>
         <button class="btn btn-navy" id="elb" onclick="syncLead()">Save Lead</button>
       </div>
       <div id="e-stu-fields" style="display:none">
@@ -537,7 +539,7 @@ const SUPA_TBL={finalise:'finalised',lists:'visa_types'};
 // per-table: primary key, the payload key carrying the id, key renames (app->column), allowed columns
 const SUPA_META={
   cases:{pk:'case_ref',id:'ref',rename:{ref:'case_ref',name:'client_name',assigned:'assigned_to'},cols:['case_ref','client_name','phone','email','assigned_to','visa_type','lead_ref','student_ref','submitted','lodgement_date','decision_date','status','visa_expiry','form956','service_agreement','file_notes','invoice_raised','receipt_issued','amount_charged','amount_received','balance','referred_by','family_group','sourced_by','journey_stage','comments','onshore_offshore','finalise']},
-  leads:{pk:'id',id:'id',rename:{},cols:['id','name','dob','phone','email','nationality','visa_interest','source','assigned','stage','notes','follow_up_date','created_at','last_updated','converted','visa_expiry','onshore_offshore']},
+  leads:{pk:'id',id:'id',rename:{},cols:['id','name','dob','phone','email','nationality','visa_interest','source','assigned','stage','notes','follow_up_date','created_at','last_updated','converted','visa_expiry','onshore_offshore','family_group']},
   students:{pk:'id',id:'id',rename:{},cols:['id','name','dob','phone','email','nationality','onshore_offshore','assigned','institute','course','course_start','course_end','visa_expiry','status','offer_date','ecoe_date','comm_notes','next_invoice_due','visa_required','case_ref','referred_by','source','notes','billing']},
   file_notes:{pk:'id',id:'id',rename:{},cols:['id','ref','client','date','time','category','note','action','updated']},
   due_dates:{pk:'id',id:'id',rename:{},cols:['id','ref','client','assigned','task','type','due','priority','status','completed','notes']},
@@ -673,6 +675,8 @@ async function loadFromExcel(silent){
           visaExpiry:      l.visa_expiry||'',
           onshore_offshore:l.onshore_offshore||'',
           oo:              l.onshore_offshore||'',
+          family_group:    l.family_group||'',
+          familyGroup:     l.family_group||'',
         };
       });
       aLeads.splice(0,aLeads.length,...ml);
@@ -1702,9 +1706,9 @@ function escA(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g
 function efld(label,ctrl){ return '<div class="fld" style="margin-bottom:8px"><label>'+label+'</label>'+ctrl+'</div>'; }
 function editCaseProfile(ref){
   var c=CASES.find(function(x){return (x.case_ref||x.ref)===ref;});
-  var panel=document.getElementById('cl-panel');
+  var panel=document.getElementById('cl-profile');
   if(!c||!panel) return;
-  var groups=[]; CASES.forEach(function(x){ var g=x.family_group||x.familyGroup||''; if(g&&groups.indexOf(g)<0) groups.push(g); }); groups.sort();
+  var groups=[]; CASES.concat(aLeads||[]).forEach(function(x){ var g=x.family_group||x.familyGroup||''; if(g&&groups.indexOf(g)<0) groups.push(g); }); groups.sort();
   var curFG=c.family_group||c.familyGroup||'';
   var curVisa=c.visa_type||c.visaType||c.visa||'';
   var visaArr=VISA_LIST.slice(); if(curVisa&&visaArr.indexOf(curVisa)<0) visaArr.unshift(curVisa);
@@ -1733,7 +1737,7 @@ function editCaseProfile(ref){
     '</div></div>';
   initPickers(panel);
 }
-function cancelCaseEdit(ref){ var c=CASES.find(function(x){return (x.case_ref||x.ref)===ref;}); var p=document.getElementById('cl-panel'); if(c&&p) renderCaseProfile(c,p); }
+function cancelCaseEdit(ref){ var c=CASES.find(function(x){return (x.case_ref||x.ref)===ref;}); var p=document.getElementById('cl-profile'); if(c&&p) renderCaseProfile(c,p); }
 async function saveCaseEdit(ref){
   var c=CASES.find(function(x){return (x.case_ref||x.ref)===ref;}); if(!c) return;
   function gv(id){ var e=document.getElementById(id); return e?e.value:''; }
@@ -1755,7 +1759,7 @@ async function saveCaseEdit(ref){
   c.amount_received=upd.amount_received; c.amountReceived=upd.amount_received;
   showMsg(ok?'Changes saved':'Saved locally — sync issue', ok?'ok':'err');
   rDash(); rClients();
-  var panel=document.getElementById('cl-panel'); if(panel) renderCaseProfile(c,panel);
+  var panel=document.getElementById('cl-profile'); if(panel) renderCaseProfile(c,panel);
 }
 
 function renderFinalisedProfile(f, panel){
@@ -1805,11 +1809,36 @@ function renderLeadProfile(l, panel){
     '<div class="pr-row"><span class="pk">Email</span><span class="pv" style="font-size:11px">'+(l.email||'\u2014')+'</span></div>'+
     '<div class="pr-row"><span class="pk">Visa Expiry</span><span class="pv" style="color:'+(l.visa_expiry||l.visaExpiry?'#dc2626':'#94a3b8')+'">'+fmtExp(l.visa_expiry||l.visaExpiry)+'</span></div>'+
     '<div class="pr-row"><span class="pk">Source</span><span class="pv">'+(l.source||'\u2014')+'</span></div>'+
+    '<div class="pr-row"><span class="pk">Family Group</span><span class="pv">'+(l.family_group||l.familyGroup||'\u2014')+' <span onclick="editLeadFG(\''+(l.id||'')+'\')" style="color:#1d6fd8;cursor:pointer;font-size:11px;margin-left:4px">edit</span></span></div>'+
     '<div class="pr-row"><span class="pk">Assigned</span><span class="pv">'+sbdg(l.assigned||'')+'</span></div>'+
     '<div class="pr-row"><span class="pk">Nationality</span><span class="pv">'+(l.nationality||'\u2014')+'</span></div>'+
     '<div class="pr-row"><span class="pk">Onshore/Offshore</span><span class="pv">'+(l.oo||'\u2014')+'</span></div></div>'+
     '<div class="pc"><div class="pl">File Notes</div>'+fnHtml(l.id)+'</div>'+
     '</div>';
+}
+
+function editLeadFG(id){
+  var l=aLeads.find(function(x){return x.id===id;}); var panel=document.getElementById('cl-profile');
+  if(!l||!panel) return;
+  var groups=[]; CASES.concat(aLeads||[]).forEach(function(x){ var g=x.family_group||x.familyGroup||''; if(g&&groups.indexOf(g)<0) groups.push(g); }); groups.sort();
+  var cur=l.family_group||l.familyGroup||'';
+  var opts='<option value="">— None —</option>'+groups.map(function(g){return '<option'+(g===cur?' selected':'')+' value="'+escA(g)+'">'+escA(g)+'</option>';}).join('')+'<option value="__new__">+ New group…</option>';
+  panel.innerHTML='<div class="ph" style="background:#7c3aed"><div class="ph-n">Family Group</div><div class="ph-s">'+escA(l.name||'')+' &middot; '+escA(l.id||'')+'</div></div>'+
+    '<div style="padding:14px">'+
+    efld('Family Group','<select class="inp" id="lfg" onchange="document.getElementById(\'lfg-newwrap\').style.display=(this.value===\'__new__\')?\'block\':\'none\'">'+opts+'</select><div id="lfg-newwrap" style="display:none;margin-top:6px"><input class="inp" id="lfg-new" placeholder="New group name"></div>')+
+    '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-navy" style="flex:1" onclick="saveLeadFG(\''+escA(l.id)+'\')">Save</button><button class="btn" style="flex:1;background:#e2e8f0;color:#475569" onclick="cancelLeadFG(\''+escA(l.id)+'\')">Cancel</button></div></div>';
+}
+function cancelLeadFG(id){ var l=aLeads.find(function(x){return x.id===id;}); var p=document.getElementById('cl-profile'); if(l&&p) renderLeadProfile(l,p); }
+async function saveLeadFG(id){
+  var l=aLeads.find(function(x){return x.id===id;}); if(!l) return;
+  var sel=document.getElementById('lfg').value;
+  var fg=(sel==='__new__')?(document.getElementById('lfg-new')?document.getElementById('lfg-new').value.trim():''):sel;
+  showMsg('Saving...','info');
+  var ok=await callPA({secret:'dandona2026',action:'update',table:'leads',data:{id:id,family_group:fg}}, (l.name||'Lead')+' family group','leads');
+  l.family_group=fg; l.familyGroup=fg;
+  showMsg(ok?'Saved':'Saved locally — sync issue', ok?'ok':'err');
+  var p=document.getElementById('cl-profile'); if(p) renderLeadProfile(l,p);
+  rClients();
 }
 
 function renderStuProfile(s, panel){
@@ -1881,7 +1910,7 @@ async function saveStuBilling(s,b){
   showMsg('Saving...','info');
   var ok=await callPA({secret:'dandona2026',action:'update',table:'students',data:{id:s.id,billing:json}}, s.name+' billing','students');
   showMsg(ok?'Saved':'Saved locally — sync issue', ok?'ok':'err');
-  var panel=document.getElementById('cl-panel'); if(panel) renderStuProfile(s,panel);
+  var panel=document.getElementById('cl-profile'); if(panel) renderStuProfile(s,panel);
   rDash();
 }
 async function addStuInvoice(id){
@@ -1959,7 +1988,7 @@ function detUpd(){
   var rules  = SR[cat]||[];
   var isConv = CTRIG.indexOf(cat)>=0 && sType==='lead';
   var isStu  = sType==='student';
-  ['ef-pay','ef-inv','ef-lod','ef-dec','ef-fur','ef-imr','ef-stu','ef-stu-enrol'].forEach(id=>document.getElementById(id).style.display='none');
+  ['ef-pay','ef-inv','ef-lod','ef-dec','ef-fur','ef-imr','ef-stu','ef-stu-enrol','ef-comm'].forEach(id=>document.getElementById(id).style.display='none');
   // Show/hide Student Updates optgroup based on selected client type
   var ncat = document.getElementById('ncat');
   if(ncat){
@@ -2010,9 +2039,17 @@ function detUpd(){
   }
   if(cat==='Further Assessment') document.getElementById('ef-fur').style.display='block';
   if(isStu) document.getElementById('ef-stu').style.display='block';
+  if(cat==='Commission Invoice Sent'||cat==='Commission Received') document.getElementById('ef-comm').style.display='block';
 }
 
 // ── NEW ENTRY TYPE ──
+function fillEntryFG(){
+  var sel=document.getElementById('e-fg'); if(!sel) return;
+  var groups=[]; CASES.concat(aLeads||[]).forEach(function(x){ var g=x.family_group||x.familyGroup||''; if(g&&groups.indexOf(g)<0) groups.push(g); }); groups.sort();
+  sel.innerHTML='<option value="">— None —</option>'+groups.map(function(g){return '<option value="'+escA(g)+'">'+escA(g)+'</option>';}).join('')+'<option value="__new__">+ New group…</option>';
+  var nw=document.getElementById('e-fg-newwrap'); if(nw) nw.style.display='none';
+  var ni=document.getElementById('e-fg-new'); if(ni) ni.value='';
+}
 function chgEntryType(val){
   var form = document.getElementById('eform');
   var vf   = document.getElementById('e-visa-fields');
@@ -2021,17 +2058,20 @@ function chgEntryType(val){
   if(!val){ form.style.display='none'; return; }
   form.style.display='block';
   var imrWrap=document.getElementById('e-imr-wrap'); if(imrWrap) imrWrap.style.display='none';
+  var efgw=document.getElementById('e-fg-wrap'); if(efgw) efgw.style.display='none';
   if(val==='lead'){
     vf.style.display=''; sf.style.display='none';
     lbl.textContent='Personal Details — Visa Lead';
     lbl.style.borderLeftColor='#1d6fd8';
     lbl.style.background='#eff6ff';
+    var efgwL=document.getElementById('e-fg-wrap'); if(efgwL) efgwL.style.display='block'; fillEntryFG();
   } else if(val==='case'){
     vf.style.display=''; sf.style.display='none';
     lbl.textContent='Personal Details — Confirmed Case';
     lbl.style.borderLeftColor='#7c3aed';
     lbl.style.background='#f5f3ff';
     var imrw=document.getElementById('e-imr-wrap'); if(imrw) imrw.style.display='block';
+    var efgw2=document.getElementById('e-fg-wrap'); if(efgw2) efgw2.style.display='block'; fillEntryFG();
   } else {
     vf.style.display='none'; sf.style.display='';
     lbl.textContent='Personal Details — Student Admission';
@@ -2184,6 +2224,17 @@ async function syncNote(){
     if(cat==='Student Enrolled')    su.status='Enrolled';
     if(cat==='Commission Invoice Sent') su.status='Commission Invoice Sent';
     if(cat==='Commission Received') su.status='Commission Received';
+    if(cat==='Commission Invoice Sent'||cat==='Commission Received'){
+      var amtEl=document.getElementById('ncomm');
+      var amtV=amtEl?Number(amtEl.value||0):0;
+      if(!amtV||amtV<=0){ showMsg('Amount is required for '+cat,'err'); btn.disabled=false; btn.textContent='Save'; return; }
+      var stuObj0=aStu.find(function(x){return x.id===ref;})||{};
+      var bill0=getStuBilling(stuObj0);
+      if(cat==='Commission Invoice Sent') bill0.invoices.push({date:TODAY,amount:amtV});
+      else bill0.commissions.push({date:TODAY,amount:amtV});
+      su.billing=JSON.stringify(bill0);
+      stuObj0.billing=su.billing;
+    }
     if(cn)  su.comm_notes=cn;
     if(nid){
       su.next_invoice_due=nid;
@@ -2203,7 +2254,7 @@ async function syncNote(){
       if(cn) aStu[idx2].commNotes=cn;
       if(nid){ aStu[idx2].nextInvoice=nid; aStu[idx2].next_invoice_due=nid; }
       // Re-render profile panel
-      var panel=document.getElementById('cl-panel');
+      var panel=document.getElementById('cl-profile');
       if(panel && panel.innerHTML) renderStuProfile(aStu[idx2], panel);
     }
   }
@@ -2239,6 +2290,7 @@ async function syncNote(){
       referred_by:lead.source||lead.referred_by||'',
       onshore_offshore:lead.oo||lead.onshore_offshore||'',
       visa_expiry:lead.visaExpiry||lead.visa_expiry||'',
+      family_group:lead.family_group||lead.familyGroup||'',
       amount_charged:0,
       amount_received:0,
       balance:0,
@@ -2321,28 +2373,28 @@ async function syncNote(){
       if(caseUpd.status!==undefined){ CASES[ci].status=caseUpd.status; }
       rDash(); rClients();
       // Re-render open profile panel so changes show immediately
-      var panel=document.getElementById('cl-panel');
+      var panel=document.getElementById('cl-profile');
       if(panel && panel.innerHTML && ci>=0) renderCaseProfile(CASES[ci], panel);
     }
   }
   // Re-render lead profile if it's open
   if(isLead && !isConv && !isStuEnrol){
     var li3=aLeads.findIndex(function(l){return l.id===ref;});
-    var panel2=document.getElementById('cl-panel');
+    var panel2=document.getElementById('cl-profile');
     if(li3>=0 && panel2 && panel2.innerHTML) renderLeadProfile(aLeads[li3], panel2);
   }
   // Re-render case profile after conversion
   if(isConv){
     var convCase=CASES.find(function(c){return (c.case_ref||c.ref)===document.getElementById('nimr')?document.getElementById('nimr').value||'':''});
-    var panel3=document.getElementById('cl-panel');
+    var panel3=document.getElementById('cl-profile');
     if(convCase && panel3) renderCaseProfile(convCase, panel3);
   }
   if(!fail){
     setSS('live',ok+' synced'); showMsg(ok+' update'+(ok!==1?'s':'')+' saved','ok');
-    ['nnote','nact','ndue','nref','nvd','nimr','namt','nchg','nlod','ndd','nvexp','nfud','ncn','nnid'].forEach(id=>{var el=document.getElementById(id);if(el)clrEl(el);});
+    ['nnote','nact','ndue','nref','nvd','nimr','namt','nchg','nlod','ndd','nvexp','nfud','ncn','nnid','ncomm'].forEach(id=>{var el=document.getElementById(id);if(el)clrEl(el);});
     document.getElementById('ns').value=''; document.getElementById('ncat').value='';
     document.getElementById('nsbox').style.display='none'; document.getElementById('ncbox').style.display='none';
-    ['ef-pay','ef-inv','ef-lod','ef-dec','ef-fur','ef-imr','ef-stu','ef-stu-enrol'].forEach(id=>document.getElementById(id).style.display='none');
+    ['ef-pay','ef-inv','ef-lod','ef-dec','ef-fur','ef-imr','ef-stu','ef-stu-enrol','ef-comm'].forEach(id=>document.getElementById(id).style.display='none');
     sType='case'; sVisa='';
   } else { setSS('err',fail+' failed'); showMsg(ok+' synced, '+fail+' failed','err'); }
 }
@@ -2358,10 +2410,12 @@ async function syncLead(){
     var visa=document.getElementById('evis').value;
     if(!name||!visa){ showMsg('Name and Visa Type are required','err'); return; }
     var ok=0,fail=0;
+    var efgSel=document.getElementById('e-fg')?document.getElementById('e-fg').value:'';
+    var efg=(efgSel==='__new__')?(document.getElementById('e-fg-new')?document.getElementById('e-fg-new').value.trim():''):efgSel;
     var caseData={ref:id,name:name,phone:document.getElementById('eph').value,email:document.getElementById('eem').value,
       nationality:document.getElementById('enat').value,assigned:document.getElementById('easgn').value,
       visa_type:visa,status:'Received',onshore_offshore:document.getElementById('eoo').value,
-      visa_expiry:document.getElementById('evexp').value,referred_by:document.getElementById('esrc').value,
+      visa_expiry:document.getElementById('evexp').value,referred_by:document.getElementById('esrc').value,family_group:efg,
       form956:'Pending',service_agreement:'Pending',file_notes:'Pending',
       invoice_raised:'Pending',receipt_issued:'Pending',amount_charged:0,amount_received:0,balance:0,
       notes:document.getElementById('enotes').value,created_at:TODAY};
@@ -2411,12 +2465,14 @@ async function syncLead(){
   if(!name){ showMsg('Name is required','err'); return; }
   if(!visa){ showMsg('Visa interest is required','err'); return; }
   var id='L'+Date.now();
-  var lead={id,name,dob:document.getElementById('edob').value,phone:document.getElementById('eph').value,email:document.getElementById('eem').value,visa,nationality:document.getElementById('enat').value,oo:document.getElementById('eoo').value,visaExpiry:document.getElementById('evexp').value,source:document.getElementById('esrc').value,assigned:document.getElementById('easgn').value,followup:document.getElementById('efup').value,notes:document.getElementById('enotes').value,stage:'New',created:TODAY};
+  var lefgSel=document.getElementById('e-fg')?document.getElementById('e-fg').value:'';
+  var lefg=(lefgSel==='__new__')?(document.getElementById('e-fg-new')?document.getElementById('e-fg-new').value.trim():''):lefgSel;
+  var lead={id,name,dob:document.getElementById('edob').value,phone:document.getElementById('eph').value,email:document.getElementById('eem').value,visa,nationality:document.getElementById('enat').value,oo:document.getElementById('eoo').value,visaExpiry:document.getElementById('evexp').value,source:document.getElementById('esrc').value,assigned:document.getElementById('easgn').value,followup:document.getElementById('efup').value,notes:document.getElementById('enotes').value,familyGroup:lefg,family_group:lefg,stage:'New',created:TODAY};
   aLeads.push(lead); var sl=JSON.parse(localStorage.getItem('oi_leads')||'[]'); sl.push(lead); localStorage.setItem('oi_leads',JSON.stringify(sl));
   var btn=document.getElementById('elb'); btn.disabled=true; btn.textContent='Saving...';
   setSS('syncing','Adding lead...'); showMsg('Saving...','info');
   var ok=0,fail=0;
-  var l1=await callPA({secret:'dandona2026',action:'append',table:'leads',data:{id,name,dob:lead.dob,phone:lead.phone,email:lead.email,nationality:lead.nationality,visa_interest:visa,source:lead.source,assigned:lead.assigned,follow_up_date:lead.followup,notes:lead.notes,stage:'New',created_at:TODAY,onshore_offshore:lead.oo,visa_expiry:lead.visaExpiry}},name+' new lead','leads'); l1?ok++:fail++;
+  var l1=await callPA({secret:'dandona2026',action:'append',table:'leads',data:{id,name,dob:lead.dob,phone:lead.phone,email:lead.email,nationality:lead.nationality,visa_interest:visa,source:lead.source,assigned:lead.assigned,follow_up_date:lead.followup,notes:lead.notes,stage:'New',created_at:TODAY,onshore_offshore:lead.oo,visa_expiry:lead.visaExpiry,family_group:lefg}},name+' new lead','leads'); l1?ok++:fail++;
   var fnLead={id:'FN-'+id+'-001',ref:id,client:name,date:TODAY,time:nowTime(),category:'Lead Enquiry',note:'New lead. Visa: '+visa+'. Nationality: '+(lead.nationality||'TBC')+'. Source: '+(lead.source||'TBC')+'. Assigned: '+lead.assigned+'.',action:''};
   aFN.push(fnLead); localStorage.setItem('oi_fn',JSON.stringify(aFN));
   var l2=await callPA({secret:'dandona2026',action:'append',table:'file_notes',data:fnLead},name+' Lead Enquiry','file_notes'); l2?ok++:fail++;
