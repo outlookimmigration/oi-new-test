@@ -1017,8 +1017,8 @@ function fC(){
   const mo = document.getElementById('dm')  ? document.getElementById('dm').value  : 'all';
   const st = document.getElementById('ds')  ? document.getElementById('ds').value  : 'all';
   if(st!=='all') c=c.filter(x=>x.assigned===st);
-  if(yr!=='all') c=c.filter(x=>{ const d=gM(x.submitted||x.lodgement_date||x.lodgementDate||x.created_at); return d&&String(d.y)===yr; });
-  if(mo!=='all') c=c.filter(x=>{ const d=gM(x.submitted||x.lodgement_date||x.lodgementDate||x.created_at); return d&&String(d.m)===mo; });
+  if(yr!=='all') c=c.filter(x=>{ const d=gM(x.submitted||x.lodgement_date||x.lodgementDate||x.decision_date||x.decisionDate||x.created_at); return d&&String(d.y)===yr; });
+  if(mo!=='all') c=c.filter(x=>{ const d=gM(x.submitted||x.lodgement_date||x.lodgementDate||x.decision_date||x.decisionDate||x.created_at); return d&&String(d.m)===mo; });
 
   return c;
 }
@@ -1046,18 +1046,15 @@ async function completeInvoice(stuRef, clientName, taskName){
   // Update student: commission invoice sent note + next invoice date
   var su={id:stuRef};
   if(received) su.comm_notes='Commission invoice sent. Amount: $'+received;
-  if(nextDate && nextDate.trim()) su.next_invoice_due=nextDate;
-
-  if(Object.keys(su).length>1){
-    await callPA({secret:'dandona2026',action:'update',table:'students',data:su},clientName+' commission','students');
-    // Update in-memory student
-    var idx=aStu.findIndex(function(s){return s.id===stuRef;});
-    if(idx>=0){
-      if(received) aStu[idx].commNotes='Commission invoice sent. Amount: $'+received;
-      if(nextDate && nextDate.trim()){ aStu[idx].nextInvoice=nextDate; aStu[idx].next_invoice_due=nextDate; }
-    }
-    ok++;
+  // Always write next_invoice_due so the DB is cleared (or replaced) — otherwise the task reappears on reload
+  su.next_invoice_due=(nextDate && nextDate.trim()) ? nextDate : '';
+  await callPA({secret:'dandona2026',action:'update',table:'students',data:su},clientName+' commission','students');
+  var idx=aStu.findIndex(function(s){return s.id===stuRef;});
+  if(idx>=0){
+    if(received) aStu[idx].commNotes='Commission invoice sent. Amount: $'+received;
+    aStu[idx].nextInvoice=su.next_invoice_due; aStu[idx].next_invoice_due=su.next_invoice_due;
   }
+  ok++;
   // Create file note
   var fn={id:'FN-COMM-'+stuRef+'-'+Date.now(),ref:stuRef,client:clientName,date:TODAY,time:nowTime(),
     category:'Commission Invoice Sent',
@@ -1155,7 +1152,7 @@ function rDash(){
 
   // Build combined set: active cases + finalised cases (filtered by period)
   var finForPeriod = (window.__finalised||[]).filter(function(f){
-    var d=gM(f.finalised_date||f.lodgement_date||'');
+    var d=gM(f.submitted||f.lodgement_date||f.finalised_date||'');
     if(yr==='all') return true;
     if(!d) return false;
     if(String(d.y)!==yr) return false;
@@ -1227,7 +1224,7 @@ function rDash(){
       assigned:f.assigned_to||'',visa:f.visa_type||'',status:'Finalised'};
   });
   var allForCharts = [...CASES,...finMapped];
-  let yearCases = (yr==='all') ? allForCharts : allForCharts.filter(x=>{ const d=gM(x.submitted||x.lodgement_date||x.lodgementDate||x.created_at); return d&&String(d.y)===yr; });
+  let yearCases = (yr==='all') ? allForCharts : allForCharts.filter(x=>{ const d=gM(x.submitted||x.lodgement_date||x.lodgementDate||x.decision_date||x.decisionDate||x.created_at); return d&&String(d.y)===yr; });
   if(st2!=='all') yearCases=yearCases.filter(x=>x.assigned===st2);
 
   const monC   = Array(12).fill(0);
@@ -1772,9 +1769,11 @@ function renderFinalisedProfile(f, panel){
     return '<div class="pr-row"><span class="pk">'+k+'</span><span style="font-size:12px;font-weight:600;color:'+col+'">'+lbl+'</span></div>';
   }).join('');
   panel.innerHTML =
-    '<div class="ph" style="background:#374151">'+
+    '<div class="ph" style="background:#374151;position:relative">'+
     '<div class="ph-n">'+(f.client_name||f.name||'')+'</div>'+
-    '<div class="ph-s">'+(f.case_ref||'')+' &middot; '+(f.visa_type||'')+' &middot; <span style="background:#f0fdf4;color:#16a34a;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700">Finalised</span></div></div>'+
+    '<div class="ph-s">'+(f.case_ref||'')+' &middot; '+(f.visa_type||'')+' &middot; <span style="background:#f0fdf4;color:#16a34a;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700">Finalised</span></div>'+
+    '<button onclick="editFinProfile(\''+(f.case_ref||'')+'\')" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Edit</button>'+
+    '</div>'+
     '<div class="pg4">'+
     '<div class="pc"><div class="pl">Case Details</div>'+
     '<div class="pr-row"><span class="pk">Status</span><span class="pv">'+stbdg('Finalised')+'</span></div>'+
@@ -1798,9 +1797,11 @@ function renderFinalisedProfile(f, panel){
 
 function renderLeadProfile(l, panel){
   panel.innerHTML =
-    '<div class="ph" style="background:#7c3aed">'+
+    '<div class="ph" style="background:#7c3aed;position:relative">'+
     '<div class="ph-n">'+l.name+'</div>'+
-    '<div class="ph-s">'+(l.id||'')+' &middot; Lead &middot; '+(l.visa||'Visa TBC')+'</div></div>'+
+    '<div class="ph-s">'+(l.id||'')+' &middot; Lead &middot; '+(l.visa||'Visa TBC')+'</div>'+
+    '<button onclick="editLeadProfile(\''+(l.id||'')+'\')" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Edit</button>'+
+    '</div>'+
     '<div class="pg4">'+
     '<div class="pc"><div class="pl">Lead Details</div>'+
     '<div class="pr-row"><span class="pk">Stage</span><span class="pv">'+stbdg(l.stage||'New')+'</span></div>'+
@@ -1843,9 +1844,11 @@ async function saveLeadFG(id){
 
 function renderStuProfile(s, panel){
   panel.innerHTML =
-    '<div class="ph" style="background:#0f766e">'+
+    '<div class="ph" style="background:#0f766e;position:relative">'+
     '<div class="ph-n">'+s.name+'</div>'+
-    '<div class="ph-s">'+s.id+' &middot; Student &middot; '+stbdg(s.status)+'</div></div>'+
+    '<div class="ph-s">'+s.id+' &middot; Student &middot; '+stbdg(s.status)+'</div>'+
+    '<button onclick="editStuProfile(\''+(s.id||'')+'\')" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Edit</button>'+
+    '</div>'+
     '<div class="pg4">'+
     '<div class="pc"><div class="pl">Personal</div>'+
     '<div class="pr-row"><span class="pk">DOB</span><span class="pv">'+(s.dob||'\u2014')+'</span></div>'+
@@ -1930,6 +1933,147 @@ async function delStuInvoice(id,i){
 async function delStuCommission(id,i){
   var s=aStu.find(function(x){return x.id===id;}); if(!s) return;
   var b=getStuBilling(s); b.commissions.splice(i,1); await saveStuBilling(s,b);
+}
+
+// ── EDIT LEAD / STUDENT / FINALISED PROFILES ──
+function optHtml(arr,cur){ return arr.map(function(o){return '<option'+(o===cur?' selected':'')+' value="'+escA(o)+'">'+escA(o)+'</option>';}).join(''); }
+function fgOptHtml(cur){ var groups=[]; CASES.concat(aLeads||[]).forEach(function(x){ var g=x.family_group||x.familyGroup||''; if(g&&groups.indexOf(g)<0) groups.push(g); }); groups.sort(); return '<option value="">— None —</option>'+groups.map(function(g){return '<option'+(g===cur?' selected':'')+' value="'+escA(g)+'">'+escA(g)+'</option>';}).join('')+'<option value="__new__">+ New group…</option>'; }
+function dval(v){ return (typeof toISO==='function'?(toISO(v)||v||''):(v||'')); }
+function editHdr(bg,title,sub){ return '<div class="ph" style="background:'+bg+'"><div class="ph-n">Edit — '+escA(title)+'</div><div class="ph-s">'+escA(sub)+'</div></div>'; }
+function editBtns(saveCall,cancelCall){ return '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-navy" style="flex:1" onclick="'+saveCall+'">Save Changes</button><button class="btn" style="flex:1;background:#e2e8f0;color:#475569" onclick="'+cancelCall+'">Cancel</button></div>'; }
+function vstaff(cur){ var staff=['Kapish','Rahul','Rachin']; if(cur&&staff.indexOf(cur)<0) staff.unshift(cur); return staff; }
+function vvisa(cur){ var a=VISA_LIST.slice(); if(cur&&a.indexOf(cur)<0) a.unshift(cur); return a; }
+
+// ----- LEAD -----
+function editLeadProfile(id){
+  var l=aLeads.find(function(x){return x.id===id;}); var panel=document.getElementById('cl-profile');
+  if(!l||!panel) return;
+  var stages=['New','Contacted','Qualified','Converted','Lost']; var st=l.stage||'New'; if(stages.indexOf(st)<0) stages.unshift(st);
+  var visa=l.visa||l.visa_interest||'';
+  panel.innerHTML=editHdr('#7c3aed',l.name||'',l.id||'')+
+    '<div style="padding:14px">'+
+    efld('Full Name','<input class="inp" id="l-name" value="'+escA(l.name||'')+'">')+
+    efld('Phone','<input class="inp" id="l-phone" value="'+escA(l.phone||'')+'">')+
+    efld('Email','<input class="inp" id="l-email" value="'+escA(l.email||'')+'">')+
+    efld('Nationality','<input class="inp" id="l-nat" value="'+escA(l.nationality||'')+'">')+
+    efld('Visa Interest','<select class="inp" id="l-visa"><option value="">— Select —</option>'+optHtml(vvisa(visa),visa)+'</select>')+
+    efld('Stage','<select class="inp" id="l-stage">'+optHtml(stages,st)+'</select>')+
+    efld('Assigned To','<select class="inp" id="l-assigned">'+optHtml(vstaff(l.assigned||''),l.assigned||'')+'</select>')+
+    efld('Onshore / Offshore','<select class="inp" id="l-oo">'+optHtml(['Onshore','Offshore'],l.oo||l.onshore_offshore||'')+'</select>')+
+    efld('Visa Expiry','<input class="inp dpick" type="text" id="l-vexp" value="'+escA(dval(l.visa_expiry||l.visaExpiry||''))+'">')+
+    efld('Source','<input class="inp" id="l-source" value="'+escA(l.source||'')+'">')+
+    efld('Family Group','<select class="inp" id="l-fg" onchange="document.getElementById(\'l-fg-newwrap\').style.display=(this.value===\'__new__\')?\'block\':\'none\'">'+fgOptHtml(l.family_group||l.familyGroup||'')+'</select><div id="l-fg-newwrap" style="display:none;margin-top:6px"><input class="inp" id="l-fg-new" placeholder="New group name"></div>')+
+    editBtns("saveLeadProfile('"+escA(id)+"')","cancelLeadProfile('"+escA(id)+"')")+
+    '</div>';
+  initPickers(panel);
+}
+function cancelLeadProfile(id){ var l=aLeads.find(function(x){return x.id===id;}); var p=document.getElementById('cl-profile'); if(l&&p) renderLeadProfile(l,p); }
+async function saveLeadProfile(id){
+  var l=aLeads.find(function(x){return x.id===id;}); if(!l) return;
+  function gv(i){ var e=document.getElementById(i); return e?e.value:''; }
+  var name=gv('l-name').trim(); if(!name){ showMsg('Name is required','err'); return; }
+  var fgSel=gv('l-fg'); var fg=(fgSel==='__new__')?gv('l-fg-new').trim():fgSel;
+  var upd={ id:id, name:name, phone:gv('l-phone').trim(), email:gv('l-email').trim(), nationality:gv('l-nat').trim(),
+    visa_interest:gv('l-visa'), stage:gv('l-stage'), assigned:gv('l-assigned'), onshore_offshore:gv('l-oo'),
+    visa_expiry:gv('l-vexp'), source:gv('l-source').trim(), family_group:fg };
+  showMsg('Saving...','info');
+  var ok=await callPA({secret:'dandona2026',action:'update',table:'leads',data:upd},name+' edited','leads');
+  l.name=name; l.phone=upd.phone; l.email=upd.email; l.nationality=upd.nationality;
+  l.visa_interest=upd.visa_interest; l.visa=upd.visa_interest; l.stage=upd.stage;
+  l.assigned=upd.assigned; l.assigned_to=upd.assigned; l.oo=upd.onshore_offshore; l.onshore_offshore=upd.onshore_offshore;
+  l.visa_expiry=upd.visa_expiry; l.visaExpiry=upd.visa_expiry; l.source=upd.source;
+  l.family_group=fg; l.familyGroup=fg;
+  showMsg(ok?'Changes saved':'Saved locally — sync issue', ok?'ok':'err');
+  rDash(); rClients();
+  var p=document.getElementById('cl-profile'); if(p) renderLeadProfile(l,p);
+}
+
+// ----- STUDENT -----
+function editStuProfile(id){
+  var s=aStu.find(function(x){return x.id===id;}); var panel=document.getElementById('cl-profile');
+  if(!s||!panel) return;
+  var statuses=['New Student','Offer Applied','Offer Received','eCOE Received','Enrolled','Commission Invoice Sent','Commission Received']; var st=s.status||''; if(st&&statuses.indexOf(st)<0) statuses.unshift(st);
+  panel.innerHTML=editHdr('#0f766e',s.name||'',s.id||'')+
+    '<div style="padding:14px">'+
+    efld('Full Name','<input class="inp" id="s-name" value="'+escA(s.name||'')+'">')+
+    efld('Phone','<input class="inp" id="s-phone" value="'+escA(s.phone||'')+'">')+
+    efld('Email','<input class="inp" id="s-email" value="'+escA(s.email||'')+'">')+
+    efld('Nationality','<input class="inp" id="s-nat" value="'+escA(s.nationality||'')+'">')+
+    efld('Onshore / Offshore','<select class="inp" id="s-oo">'+optHtml(['Onshore','Offshore'],s.oo||s.onshore_offshore||'')+'</select>')+
+    efld('Assigned To','<select class="inp" id="s-assigned">'+optHtml(vstaff(s.assigned||''),s.assigned||'')+'</select>')+
+    efld('Institute','<input class="inp" id="s-inst" value="'+escA(s.institute||'')+'">')+
+    efld('Course','<input class="inp" id="s-course" value="'+escA(s.course||'')+'">')+
+    efld('Course Start','<input class="inp dpick" type="text" id="s-cstart" value="'+escA(dval(s.start||s.course_start||''))+'">')+
+    efld('Course End','<input class="inp dpick" type="text" id="s-cend" value="'+escA(dval(s.end||s.course_end||''))+'">')+
+    efld('Visa Expiry','<input class="inp dpick" type="text" id="s-vexp" value="'+escA(dval(s.visa_expiry||s.visaExpiry||''))+'">')+
+    efld('Status','<select class="inp" id="s-status">'+optHtml(statuses,st)+'</select>')+
+    efld('Visa Required','<select class="inp" id="s-vreq">'+optHtml(['No','Yes'],s.visaRequired||s.visa_required||'No')+'</select>')+
+    efld('Source','<input class="inp" id="s-source" value="'+escA(s.source||'')+'">')+
+    editBtns("saveStuProfile('"+escA(id)+"')","cancelStuProfile('"+escA(id)+"')")+
+    '</div>';
+  initPickers(panel);
+}
+function cancelStuProfile(id){ var s=aStu.find(function(x){return x.id===id;}); var p=document.getElementById('cl-profile'); if(s&&p) renderStuProfile(s,p); }
+async function saveStuProfile(id){
+  var s=aStu.find(function(x){return x.id===id;}); if(!s) return;
+  function gv(i){ var e=document.getElementById(i); return e?e.value:''; }
+  var name=gv('s-name').trim(); if(!name){ showMsg('Name is required','err'); return; }
+  var upd={ id:id, name:name, phone:gv('s-phone').trim(), email:gv('s-email').trim(), nationality:gv('s-nat').trim(),
+    onshore_offshore:gv('s-oo'), assigned:gv('s-assigned'), institute:gv('s-inst').trim(), course:gv('s-course').trim(),
+    course_start:gv('s-cstart'), course_end:gv('s-cend'), visa_expiry:gv('s-vexp'), status:gv('s-status'),
+    visa_required:gv('s-vreq'), source:gv('s-source').trim() };
+  showMsg('Saving...','info');
+  var ok=await callPA({secret:'dandona2026',action:'update',table:'students',data:upd},name+' edited','students');
+  s.name=name; s.phone=upd.phone; s.email=upd.email; s.nationality=upd.nationality;
+  s.oo=upd.onshore_offshore; s.onshore_offshore=upd.onshore_offshore; s.assigned=upd.assigned;
+  s.institute=upd.institute; s.course=upd.course;
+  s.course_start=upd.course_start; s.start=upd.course_start; s.course_end=upd.course_end; s.end=upd.course_end;
+  s.visa_expiry=upd.visa_expiry; s.visaExpiry=upd.visa_expiry; s.status=upd.status;
+  s.visa_required=upd.visa_required; s.visaRequired=upd.visa_required; s.source=upd.source;
+  showMsg(ok?'Changes saved':'Saved locally — sync issue', ok?'ok':'err');
+  rDash(); rClients();
+  var p=document.getElementById('cl-profile'); if(p) renderStuProfile(s,p);
+}
+
+// ----- FINALISED -----
+function editFinProfile(ref){
+  var f=(window.__finalised||[]).find(function(x){return (x.case_ref||'')===ref;}); var panel=document.getElementById('cl-profile');
+  if(!f||!panel) return;
+  var visa=f.visa_type||'';
+  panel.innerHTML=editHdr('#374151',f.client_name||f.name||'',f.case_ref||'')+
+    '<div style="padding:14px">'+
+    efld('Client Name','<input class="inp" id="f-name" value="'+escA(f.client_name||f.name||'')+'">')+
+    efld('Phone','<input class="inp" id="f-phone" value="'+escA(f.phone||'')+'">')+
+    efld('Email','<input class="inp" id="f-email" value="'+escA(f.email||'')+'">')+
+    efld('Assigned To','<select class="inp" id="f-assigned">'+optHtml(vstaff(f.assigned_to||''),f.assigned_to||'')+'</select>')+
+    efld('Visa Type','<select class="inp" id="f-visa"><option value="">— Select —</option>'+optHtml(vvisa(visa),visa)+'</select>')+
+    efld('Outcome','<select class="inp" id="f-outcome">'+optHtml(['Granted','Refused'],f.outcome||'')+'</select>')+
+    efld('Visa Expiry','<input class="inp dpick" type="text" id="f-vexp" value="'+escA(dval(f.visa_expiry||''))+'">')+
+    efld('Lodgement Date','<input class="inp dpick" type="text" id="f-lod" value="'+escA(dval(f.lodgement_date||''))+'">')+
+    efld('Decision Date','<input class="inp dpick" type="text" id="f-dec" value="'+escA(dval(f.decision_date||''))+'">')+
+    efld('Amount Charged','<input class="inp" type="number" id="f-chg" value="'+Number(f.amount_charged||0)+'">')+
+    efld('Amount Received','<input class="inp" type="number" id="f-rcv" value="'+Number(f.amount_received||0)+'">')+
+    efld('Referred By','<input class="inp" id="f-refby" value="'+escA(f.referred_by||'')+'">')+
+    editBtns("saveFinProfile('"+escA(ref)+"')","cancelFinProfile('"+escA(ref)+"')")+
+    '</div>';
+  initPickers(panel);
+}
+function cancelFinProfile(ref){ var f=(window.__finalised||[]).find(function(x){return (x.case_ref||'')===ref;}); var p=document.getElementById('cl-profile'); if(f&&p) renderFinalisedProfile(f,p); }
+async function saveFinProfile(ref){
+  var f=(window.__finalised||[]).find(function(x){return (x.case_ref||'')===ref;}); if(!f) return;
+  function gv(i){ var e=document.getElementById(i); return e?e.value:''; }
+  var name=gv('f-name').trim(); if(!name){ showMsg('Name is required','err'); return; }
+  var upd={ case_ref:ref, client_name:name, phone:gv('f-phone').trim(), email:gv('f-email').trim(),
+    assigned_to:gv('f-assigned'), visa_type:gv('f-visa'), outcome:gv('f-outcome'),
+    visa_expiry:gv('f-vexp'), lodgement_date:gv('f-lod'), decision_date:gv('f-dec'),
+    amount_charged:Number(gv('f-chg')||0), amount_received:Number(gv('f-rcv')||0), referred_by:gv('f-refby').trim() };
+  showMsg('Saving...','info');
+  var ok=await callPA({secret:'dandona2026',action:'update',table:'finalised',data:upd},name+' edited','finalise');
+  Object.keys(upd).forEach(function(k){ f[k]=upd[k]; }); f.name=name;
+  try{ localStorage.setItem('oi_fin',JSON.stringify(window.__finalised)); }catch(e){}
+  showMsg(ok?'Changes saved':'Saved locally — sync issue', ok?'ok':'err');
+  rDash(); rClients();
+  var p=document.getElementById('cl-profile'); if(p) renderFinalisedProfile(f,p);
 }
 
 // ── SMART NOTE SEARCH ──
