@@ -348,7 +348,7 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
     <div class="sbox" id="nsbox"><div class="stit">Auto-updates will be applied</div><div id="nsi"></div></div>
     <div class="cbox" id="ncbox"><div style="font-size:11px;font-weight:700;color:#1d6fd8;margin-bottom:3px" id="ncbox-title">Lead will be converted to Active Case</div><div style="font-size:12px;color:#1e40af" id="ncbox-sub">Form 956 or Service Agreement triggers automatic conversion.</div></div>
     <div class="ef" id="ef-pay"><div class="fg2"><div class="fld"><label>Payment Amount (adds to existing) <span class="rq">*</span></label><input class="inp" type="number" id="namt" placeholder="e.g. 500"></div><div class="fld"><label>Method</label><select class="inp" id="nmth"><option>Bank Transfer</option><option>Cash</option><option>Card</option><option>BPAY</option><option>Cheque</option></select></div></div></div>
-    <div class="ef" id="ef-inv"><div class="fld"><label>Amount Charged</label><input class="inp" type="number" id="nchg" placeholder="3500"></div></div>
+    <div class="ef" id="ef-inv"><div class="fld"><label>Invoice Amount (adds to total charged)</label><input class="inp" type="number" id="nchg" placeholder="e.g. 3500"></div></div>
     <div class="ef" id="ef-lod"><div class="fg2"><div class="fld"><label>Lodgement Date <span class="rq">*</span></label><input class="inp dpick" type="text" id="nlod"></div><div class="fld"><label>Visa Type <span class="rq">*</span></label><select class="inp" id="nvisatype"><option value="">— Select —</option><option>Student Visa (500)</option><option>Visitor Visa (600)</option><option>Partner Visa (820/801)</option><option>Partner Visa (309/100)</option><option>Skilled Independent (189)</option><option>Skilled Nominated (190)</option><option>Skilled Work Regional (491)</option><option>Skills in Demand (482)</option><option>Employer Nomination (186)</option><option>Regional Sponsored (187)</option><option>Temporary Graduate (485)</option><option>Working Holiday (417)</option><option>Work and Holiday (462)</option><option>Parent Visa (103/143)</option><option>Bridging Visa A (010)</option><option>Bridging Visa B (020)</option><option>Bridging Visa E (050)</option><option>Training Visa (407)</option><option>Global Talent (858)</option><option>Business Innovation (188)</option><option>Other</option></select></div></div></div>
     <div class="ef" id="ef-dec"><div class="fg2"><div class="fld"><label>Decision Date</label><input class="inp dpick" type="text" id="ndd"></div><div class="fld" id="ef-vexp-wrap"><label>Visa Expiry <span class="rq">*</span></label><input class="inp dpick" type="text" id="nvexp"></div></div></div>
     <div class="ef" id="ef-fur"><div class="fld"><label>Response Due Date</label><input class="inp dpick" type="text" id="nfud"></div></div>
@@ -888,7 +888,7 @@ function parseAUDate(d){
   if(!d) return null;
   var s=String(d).trim();
   // DD/MM/YYYY
-  if(s.match(/^\d{2}\/\d{2}\/\d{4}$/)){
+  if(s.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)){
     var p=s.split('/'); return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
   }
   // YYYY-MM-DD
@@ -913,7 +913,7 @@ function daysFrom(d){
 function fmtExp(exp){
   if(!exp) return '\u2014';
   var s=String(exp);
-  if(s.match(/^\d{2}\/\d{2}\/\d{4}$/)) return s;
+  if(s.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) return s;
   if(s.match(/^\d{4}-\d{2}-\d{2}$/)){var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
   if(s.match(/^\d{4,6}$/) && Number(s)>40000){var d=new Date(Math.round((Number(s)-25569)*86400000));return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();}
   var d2=new Date(exp); if(!isNaN(d2)) return ('0'+d2.getDate()).slice(-2)+'/'+('0'+(d2.getMonth()+1)).slice(-2)+'/'+d2.getFullYear();
@@ -948,7 +948,7 @@ function gM(d){
     if(s.match(/^\d{4}-\d{2}-\d{2}$/)){
       const p=s.split('-'); return {y:parseInt(p[0]),m:parseInt(p[1])};
     }
-    if(s.match(/^\d{2}\/\d{2}\/\d{4}$/)){
+    if(s.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)){
       const p=s.split('/'); return {y:parseInt(p[2]),m:parseInt(p[1])};
     }
     const dt=new Date(d);
@@ -1076,6 +1076,13 @@ async function completeInvoice(stuRef, clientName, taskName){
     window.__dueDates=window.__dueDates||[]; window.__dueDates.push(nidRow);
     localStorage.setItem('oi_dd',JSON.stringify(window.__dueDates));
   }
+  // Mark any pending commission-invoice due_dates rows for this student as completed (prevents lingering duplicate tasks)
+  var pendInv=(window.__dueDates||[]).filter(function(d){return d.type==='Invoice' && d.ref===stuRef && d.status!=='Completed';});
+  for(var pi=0; pi<pendInv.length; pi++){
+    pendInv[pi].status='Completed'; pendInv[pi].completed=TODAY;
+    await callPA({secret:'dandona2026',action:'update',table:'due_dates',data:{id:pendInv[pi].id,status:'Completed',completed:TODAY}},clientName+' invoice task closed','due_dates');
+  }
+  if(pendInv.length) localStorage.setItem('oi_dd',JSON.stringify(window.__dueDates));
   showMsg(clientName+' commission done'+(nextDate?' — next invoice: '+nextDate:''),'ok');
   rDash();
 }
@@ -1220,11 +1227,14 @@ function rDash(){
   const st2 = document.getElementById('ds') ? document.getElementById('ds').value : 'all';
   // Include finalised cases in charts
   var finMapped = (window.__finalised||[]).map(function(f){
-    return {submitted:f.finalised_date||f.lodgement_date||'',lodgement_date:f.finalised_date||'',
+    return {submitted:f.lodgement_date||f.finalised_date||'',lodgement_date:f.lodgement_date||f.finalised_date||'',
       amountCharged:Number(f.amount_charged||0),amountReceived:Number(f.amount_received||0),
       assigned:f.assigned_to||'',visa:f.visa_type||'',status:'Finalised'};
   });
-  var allForCharts = [...CASES,...finMapped];
+  // Dedupe: a case that also exists in the finalised list must only be counted once (via finMapped)
+  var _finRefsCh={}; (window.__finalised||[]).forEach(function(f){ if(f.case_ref) _finRefsCh[f.case_ref]=1; });
+  var activeForCharts = CASES.filter(function(x){ return x.status!=='Finalised' && !_finRefsCh[(x.case_ref||x.ref)]; });
+  var allForCharts = [...activeForCharts,...finMapped];
   let yearCases = (yr==='all') ? allForCharts : allForCharts.filter(x=>{ const d=gM(x.submitted||x.lodgement_date||x.lodgementDate||x.decision_date||x.decisionDate||x.created_at); return d&&String(d.y)===yr; });
   if(st2!=='all') yearCases=yearCases.filter(x=>x.assigned===st2);
 
@@ -1363,10 +1373,12 @@ function rDash(){
   if(window.__dueDates && window.__dueDates.length){
     window.__dueDates.forEach(function(d){
       var dueStr = d.due || d.due_date || '';
-      if(dueStr && d.status!=='Completed'){
+      // Commission-invoice rows are shown in the dedicated "Commission Invoices Due" section while the student has a next_invoice_due — skip here to avoid duplicates
+      var isInvDup = (d.type==='Invoice') && aStu.some(function(s){ return s.id===d.ref && (s.nextInvoice||s.next_invoice_due); });
+      if(dueStr && d.status!=='Completed' && !isInvDup){
         // Parse various date formats: DD/MM/YYYY, YYYY-MM-DD, Excel serial number
         var dDate;
-        if(dueStr.match(/^\d{2}\/\d{2}\/\d{4}$/)){
+        if(dueStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)){
           // DD/MM/YYYY
           var parts=dueStr.split('/'); dDate=new Date(parts[2],parts[1]-1,parts[0]);
         } else if(dueStr.match(/^\d{4}-\d{2}-\d{2}$/)){
@@ -1380,7 +1392,7 @@ function rDash(){
         }
         if(!isNaN(dDate)){
           var days=Math.ceil((dDate-today)/86400000);
-          if(days<=30||days<0) upcoming.push({id:d.id||'', ref:d.ref||'', client:d.client||'', task:d.task||'Due Date', due:dueStr, days:days, assigned:d.assigned||''});
+          upcoming.push({id:d.id||'', ref:d.ref||'', client:d.client||'', task:d.task||'Due Date', due:dueStr, days:days, assigned:d.assigned||''});
         }
       }
     });
@@ -1390,12 +1402,12 @@ function rDash(){
     if(l.followup && l.stage!=='Converted' && l.stage!=='Lost'){
       var dStr=l.followup;
       var dDate;
-      if(dStr.match && dStr.match(/^\d{2}\/\d{2}\/\d{4}$/)){
+      if(dStr.match && dStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)){
         var p=dStr.split('/'); dDate=new Date(p[2],p[1]-1,p[0]);
       } else { dDate=new Date(dStr); }
       if(!isNaN(dDate)){
         var days=Math.ceil((dDate-today)/86400000);
-        if(days<=30||days<0) upcoming.push({id:'LEAD-'+l.id, ref:l.id, client:l.name, task:'Follow up: '+l.name, due:dStr, days:days, assigned:l.assigned||''});
+        upcoming.push({id:'LEAD-'+l.id, ref:l.id, client:l.name, task:'Follow up: '+l.name, due:dStr, days:days, assigned:l.assigned||''});
       }
     }
   });
@@ -1405,6 +1417,8 @@ function rDash(){
   const overdue  = upcoming.filter(u=>u.days<0);
   const todayT   = upcoming.filter(u=>u.days===0);
   const soon     = upcoming.filter(u=>u.days>0 && u.days<=7);
+  const later    = upcoming.filter(u=>u.days>7 && u.days<=30);
+  const beyond   = upcoming.filter(u=>u.days>30);
 
   let todayHtml = '<div class="ctitle">Today\'s Tasks &amp; Upcoming';
   if(overdue.length) todayHtml += ' <span class="bdg" style="background:#dc2626;color:#fff;font-size:10px">'+overdue.length+' overdue</span>';
@@ -1419,7 +1433,7 @@ function rDash(){
       '</div>';
   }
 
-  if(!upcoming.length && !noInv.length){
+  if(!upcoming.length && !noInv.length && !invTasks.length){
     todayHtml += '<div style="text-align:center;padding:16px;color:#94a3b8;font-size:12px">No upcoming tasks</div>';
   } else {
     if(overdue.length){
@@ -1433,6 +1447,14 @@ function rDash(){
     if(soon.length){
       todayHtml += '<div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;padding:6px 0 2px">This Week</div>';
       soon.forEach(u=>{ todayHtml+=alertRow('in '+u.days+'d','#475569',u.task,(u.client||'')+' — Due '+fD(u.due),u.id||'',u.ref||''); });
+    }
+    if(later.length){
+      todayHtml += '<div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;padding:6px 0 2px">Later This Month</div>';
+      later.forEach(u=>{ todayHtml+=alertRow('in '+u.days+'d','#64748b',u.task,(u.client||'')+' — Due '+fD(u.due),u.id||'',u.ref||''); });
+    }
+    if(beyond.length){
+      todayHtml += '<div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;padding:6px 0 2px">Further Out</div>';
+      beyond.forEach(u=>{ todayHtml+=alertRow(fD(u.due),'#94a3b8',u.task,(u.client||'')+' — in '+u.days+' days',u.id||'',u.ref||''); });
     }
     if(noInv.length){
       todayHtml += '<div style="font-size:10px;font-weight:700;color:#d97706;text-transform:uppercase;padding:6px 0 2px">No Invoice Raised ('+noInv.length+' granted)</div>';
@@ -1462,8 +1484,10 @@ function rDash(){
   function parseExpDate(exp){
     if(!exp) return null;
     var d;
-    if(exp.match && exp.match(/^\d{2}\/\d{2}\/\d{4}$/)){
+    if(exp.match && exp.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)){
       var p=exp.split('/'); d=new Date(p[2],p[1]-1,p[0]);
+    } else if(exp.match && exp.match(/^\d{4}-\d{2}-\d{2}$/)){
+      var pi=exp.split('-'); d=new Date(pi[0],pi[1]-1,pi[2]);
     } else if(exp.match && exp.match(/^\d{4,6}$/) && Number(exp)>40000){
       d=new Date(Math.round((Number(exp)-25569)*86400000));
     } else { d=new Date(exp); }
@@ -2309,7 +2333,7 @@ async function syncNote(){
       var r=rules[i];
       if(r.f){ caseUpd[r.f]=r.v; hasUpd=true; }
       if(r.sp==='rcv'){ var amtRcv=document.getElementById('namt')?document.getElementById('namt').value:''; if(amtRcv){ caseUpd.amount_received=Number(cx2.amount_received||cx2.amountReceived||0)+Number(amtRcv); hasUpd=true; } }
-      if(r.sp==='chg'){ var amtChg=document.getElementById('nchg')?document.getElementById('nchg').value:''; if(amtChg){ caseUpd.amount_charged=Number(amtChg); hasUpd=true; } }
+      if(r.sp==='chg'){ var amtChg=document.getElementById('nchg')?document.getElementById('nchg').value:''; if(amtChg){ caseUpd.amount_charged=Number(cx2.amount_charged||cx2.amountCharged||0)+Number(amtChg); hasUpd=true; } }
       if(r.sp==='lod'){
         var lodVal=document.getElementById('nlod')?document.getElementById('nlod').value:'';
         if(!lodVal){ showMsg('Lodgement date is required for Application Lodged','err'); btn.disabled=false; btn.textContent='Save'; return; }
@@ -2487,7 +2511,7 @@ async function syncNote(){
       source:lead2.source||'',notes:note,created_at:TODAY};
     var uStu=await callPA({secret:'dandona2026',action:'append',table:'students',data:stuData},client+' enrolled','students');
     if(uStu){
-      aStu.push({id:stuId,name:client,institute:stuInst,course:stuCourse,status:'Offer Applied',assigned:lead2.assigned||'',oo:lead2.oo||''});
+      aStu.push({id:stuId,name:client,phone:lead2.phone||'',email:lead2.email||'',nationality:lead2.nationality||'',institute:stuInst,course:stuCourse,status:'New Student',assigned:lead2.assigned||'',oo:lead2.oo||'',onshore_offshore:lead2.oo||'',visa_expiry:lead2.visaExpiry||lead2.visa_expiry||'',visaExpiry:lead2.visaExpiry||lead2.visa_expiry||'',source:lead2.source||'',visaRequired:'Yes',visa_required:'Yes',billing:'',commNotes:'',nextInvoice:'',caseRef:'',start:'',end:'',type:'student'});
       ok++;
     }
     // Delete lead
