@@ -554,12 +554,12 @@ function supaHeaders(extra){
 const SUPA_TBL={finalise:'finalised',lists:'visa_types'};
 // per-table: primary key, the payload key carrying the id, key renames (app->column), allowed columns
 const SUPA_META={
-  cases:{pk:'case_ref',id:'ref',rename:{ref:'case_ref',name:'client_name',assigned:'assigned_to'},cols:['case_ref','client_name','phone','email','assigned_to','visa_type','lead_ref','student_ref','submitted','lodgement_date','decision_date','status','visa_expiry','form956','service_agreement','file_notes','invoice_raised','receipt_issued','amount_charged','amount_received','balance','referred_by','family_group','sourced_by','journey_stage','comments','onshore_offshore','finalise']},
+  cases:{pk:'case_ref',id:'ref',rename:{ref:'case_ref',name:'client_name',assigned:'assigned_to'},cols:['case_ref','client_name','phone','email','assigned_to','visa_type','lead_ref','student_ref','submitted','lodgement_date','decision_date','status','visa_expiry','form956','service_agreement','file_notes','invoice_raised','receipt_issued','amount_charged','amount_received','balance','referred_by','family_group','sourced_by','journey_stage','comments','onshore_offshore','finalise','book']},
   leads:{pk:'id',id:'id',rename:{},cols:['id','name','dob','phone','email','nationality','visa_interest','source','assigned','stage','notes','follow_up_date','created_at','last_updated','converted','visa_expiry','onshore_offshore','family_group']},
   students:{pk:'id',id:'id',rename:{},cols:['id','name','dob','phone','email','nationality','onshore_offshore','assigned','institute','course','course_start','course_end','visa_expiry','status','offer_date','ecoe_date','comm_notes','next_invoice_due','visa_required','case_ref','referred_by','source','notes','billing']},
   file_notes:{pk:'id',id:'id',rename:{},cols:['id','ref','client','date','time','category','note','action','updated']},
   due_dates:{pk:'id',id:'id',rename:{},cols:['id','ref','client','assigned','task','type','due','priority','status','completed','notes']},
-  finalised:{pk:'case_ref',id:'case_ref',rename:{},cols:['case_ref','client_name','visa_type','visa_expiry','assigned_to','phone','email','outcome','finalised_date','lodgement_date','decision_date','form956','service_agreement','file_notes','invoice_raised','receipt_issued','amount_charged','amount_received','referred_by','notes']},
+  finalised:{pk:'case_ref',id:'case_ref',rename:{},cols:['case_ref','client_name','visa_type','visa_expiry','assigned_to','phone','email','outcome','finalised_date','lodgement_date','decision_date','form956','service_agreement','file_notes','invoice_raised','receipt_issued','amount_charged','amount_received','referred_by','notes','book']},
   institutes:{pk:'institute_name',id:'institute_name',rename:{},cols:['institute_name']},
   visa_types:{pk:'visa_type',id:'visa_type',rename:{},cols:['visa_type']}
 };
@@ -593,6 +593,60 @@ window.__finalised = JSON.parse(localStorage.getItem('oi_fin')||'[]');
 let rec    = JSON.parse(localStorage.getItem('oi_recent')||'[]');
 
 // ── LIVE EXCEL READ ──
+// ── PRIVATE BOOK (separate login opens a separate set of confirmed cases) ──
+var OI_PRIVATE_EMAILS=['private@outlookimmigration.com'];
+function oiBook(){
+  var e=(sessionStorage.getItem('oi_sb_email')||'').toLowerCase().trim();
+  return OI_PRIVATE_EMAILS.indexOf(e)>=0 ? 'private' : 'main';
+}
+function applyBookFilter(){
+  var priv = oiBook()==='private';
+  for(var i=CASES.length-1;i>=0;i--){
+    var isPriv=((CASES[i].book||'')==='private');
+    if(isPriv!==priv) CASES.splice(i,1);
+  }
+  window.__finalised=(window.__finalised||[]).filter(function(f){ return (((f.book||'')==='private')===priv); });
+  localStorage.setItem('oi_fin',JSON.stringify(window.__finalised));
+  if(priv){ aLeads.splice(0,aLeads.length); aStu.splice(0,aStu.length); }
+  // Due dates: keep only tasks belonging to records visible in this book
+  var refs={};
+  CASES.forEach(function(c){ refs[(c.case_ref||c.ref)]=1; });
+  window.__finalised.forEach(function(f){ if(f.case_ref) refs[f.case_ref]=1; });
+  if(!priv){
+    aLeads.forEach(function(l){ refs[l.id]=1; refs['LEAD-'+l.id]=1; });
+    aStu.forEach(function(s){ refs[s.id]=1; });
+  }
+  window.__dueDates=(window.__dueDates||[]).filter(function(d){ return !!refs[d.ref]; });
+  localStorage.setItem('oi_dd',JSON.stringify(window.__dueDates));
+}
+function applyPrivateUI(){
+  var priv = oiBook()==='private';
+  // Nav: hide Dashboard in private mode
+  var dashBtn=null, clientsBtn=null;
+  document.querySelectorAll('.nt').forEach(function(b){
+    var oc=b.getAttribute('onclick')||'';
+    if(oc.indexOf("'dash'")>=0) dashBtn=b;
+    if(oc.indexOf("'clients'")>=0) clientsBtn=b;
+  });
+  if(dashBtn) dashBtn.style.display = priv ? 'none' : '';
+  // Header badge
+  var hdr=document.querySelector('.hdr');
+  var badge=document.getElementById('oi-priv-badge');
+  if(priv && hdr && !badge){
+    hdr.insertAdjacentHTML('beforeend','<span id="oi-priv-badge" style="background:#7c2d12;color:#fff;font-size:10px;font-weight:700;letter-spacing:.5px;padding:4px 10px;border-radius:12px;margin-left:8px">PRIVATE</span>');
+  } else if(!priv && badge){ badge.remove(); }
+  // New Entry: private book holds confirmed cases only
+  var et=document.getElementById('etype');
+  if(et){
+    Array.from(et.options).forEach(function(o){
+      if(o.value!=='case') o.style.display = priv ? 'none' : '';
+    });
+    if(priv && et.value!=='case'){ et.value='case'; if(typeof chgEntryType==='function') chgEntryType('case'); }
+  }
+  // If the Dashboard panel is showing in private mode, move to All Clients
+  var dashPn=document.getElementById('p-dash');
+  if(priv && dashPn && dashPn.classList.contains('active') && clientsBtn){ swTab('clients', clientsBtn); }
+}
 async function loadFromExcel(silent){
   if(!silent) setSS('syncing','Loading...');
   try{
@@ -660,6 +714,7 @@ async function loadFromExcel(silent){
           student_ref:       c.student_ref||'',
           studentRef:        c.student_ref||'',
           finalise:          c.finalise||'',
+          book:              c.book||'',
         };
       });
       CASES.splice(0,CASES.length,...mc);
@@ -816,6 +871,7 @@ async function loadFromExcel(silent){
           amount_received:Number(x['Received']||x.amount_received||0),
           referred_by:    x['Referred By']||x.referred_by||'',
           notes:          x['Notes']||x.notes||'',
+          book:           x.book||'',
         };
       });
       window.__finalised.splice(0,window.__finalised.length,...mfin);
@@ -854,6 +910,7 @@ async function loadFromExcel(silent){
       aFN.splice(0,aFN.length,...mfn);
       localStorage.setItem('oi_fn',JSON.stringify(aFN));
     }
+    applyBookFilter(); applyPrivateUI();
     rDash(); rClients(); rRec();
     setSS('live','Synced — '+new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}));
     if(!silent) showMsg('Refreshed — '+(d.cases?d.cases.length:0)+' cases loaded','ok');
@@ -2452,7 +2509,7 @@ async function syncNote(){
         var finVT  = caseUpd.visa_type||cx.visa_type||cx.visaType||cx.visa||'';
         var finVX  = caseUpd.visa_expiry||cx.visa_expiry||cx.visaExpiry||'';
         var finDD  = caseUpd.decision_date||cx.decision_date||cx.decisionDate||'';
-        var finRow={case_ref:ref,client_name:client,phone:cx.phone||'',email:cx.email||'',assigned_to:cx.assigned||cx.assigned_to||'',visa_type:finVT,visa_expiry:finVX,submitted:cx.submitted||'',lodgement_date:cx.lodgement_date||cx.lodgementDate||'',decision_date:finDD,form956:cx.form956||'',service_agreement:cx.service_agreement||cx.serviceAgreement||'',file_notes:cx.file_notes||cx.fileNotes||'',invoice_raised:cx.invoice_raised||cx.invoiceRaised||'',receipt_issued:cx.receipt_issued||cx.receiptIssued||'',amount_charged:cx.amount_charged||cx.amountCharged||0,amount_received:cx.amount_received||cx.amountReceived||0,balance:(cx.amount_charged||cx.amountCharged||0)-(cx.amount_received||cx.amountReceived||0),referred_by:cx.referred_by||cx.referredBy||'',family_group:cx.family_group||cx.familyGroup||'',sourced_by:cx.sourced_by||cx.sourcedBy||'',outcome:caseOutcome,finalised_date:TODAY,notes:note};
+        var finRow={case_ref:ref,client_name:client,phone:cx.phone||'',email:cx.email||'',assigned_to:cx.assigned||cx.assigned_to||'',visa_type:finVT,visa_expiry:finVX,submitted:cx.submitted||'',lodgement_date:cx.lodgement_date||cx.lodgementDate||'',decision_date:finDD,form956:cx.form956||'',service_agreement:cx.service_agreement||cx.serviceAgreement||'',file_notes:cx.file_notes||cx.fileNotes||'',invoice_raised:cx.invoice_raised||cx.invoiceRaised||'',receipt_issued:cx.receipt_issued||cx.receiptIssued||'',amount_charged:cx.amount_charged||cx.amountCharged||0,amount_received:cx.amount_received||cx.amountReceived||0,balance:(cx.amount_charged||cx.amountCharged||0)-(cx.amount_received||cx.amountReceived||0),referred_by:cx.referred_by||cx.referredBy||'',family_group:cx.family_group||cx.familyGroup||'',sourced_by:cx.sourced_by||cx.sourcedBy||'',outcome:caseOutcome,finalised_date:TODAY,notes:note,book:cx.book||(oiBook()==='private'?'private':'')};
         var uf=await callPA({secret:'dandona2026',action:'append',table:'finalise',data:finRow},client+' finalised','finalise'); uf?ok++:fail++;
         var us=await callPA({secret:'dandona2026',action:'update',table:'cases',data:{ref,status:'Finalised'}},ref+' status Finalised','cases'); us?ok++:fail++;
         var ci=CASES.findIndex(c=>(c.case_ref||c.ref)===ref); if(ci>=0) CASES[ci].status='Finalised';
@@ -2670,7 +2727,7 @@ async function syncLead(){
     var caseData={ref:id,name:name,phone:document.getElementById('eph').value,email:document.getElementById('eem').value,
       nationality:document.getElementById('enat').value,assigned:document.getElementById('easgn').value,
       visa_type:visa,status:'Received',onshore_offshore:document.getElementById('eoo').value,
-      visa_expiry:document.getElementById('evexp').value,referred_by:document.getElementById('esrc').value,family_group:efg,
+      visa_expiry:document.getElementById('evexp').value,referred_by:document.getElementById('esrc').value,family_group:efg,book:(oiBook()==='private'?'private':''),
       form956:'Pending',service_agreement:'Pending',file_notes:'Pending',
       invoice_raised:'Pending',receipt_issued:'Pending',amount_charged:0,amount_received:0,balance:0,
       notes:document.getElementById('enotes').value,created_at:TODAY};
@@ -2858,6 +2915,7 @@ function initPickers(root){ if(typeof flatpickr!=='function') return; var els=(r
 function setPicker(el,val){ if(!el) return; if(el._flatpickr) el._flatpickr.setDate(val,false); else el.value=val; }
 function clrEl(el){ if(!el) return; if(el._flatpickr) el._flatpickr.clear(); else el.value=''; }
 initPickers();
+applyBookFilter(); applyPrivateUI();
 setTimeout(function(){ loadFromExcel(true); }, 500);
 
 </script>
