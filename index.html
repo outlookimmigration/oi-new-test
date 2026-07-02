@@ -165,6 +165,22 @@ textarea.inp{min-height:58px;resize:vertical;line-height:1.5}
   #login-btn:hover{background:#1d3a6e}
   #login-err{color:#dc2626;font-size:12px;margin-top:8px;display:none}
 
+
+/* ── UI polish (visual only) ── */
+.tbl tbody tr{transition:background .12s}
+.tbl tbody tr:hover{background:#f1f5f9}
+#cl-list .tbl tbody tr, #p-clients .tbl tbody tr{cursor:pointer}
+.alert-item{transition:background .12s;border-radius:6px}
+.alert-item:hover{background:#f8fafc}
+.alert-scroll::-webkit-scrollbar, .tw::-webkit-scrollbar{width:6px;height:6px}
+.alert-scroll::-webkit-scrollbar-thumb, .tw::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.alert-scroll::-webkit-scrollbar-thumb:hover, .tw::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+.nt{transition:color .12s,border-color .12s}
+.inp{transition:border-color .12s,box-shadow .12s}
+select.inp{cursor:pointer}
+.pr-row{transition:background .12s}
+.pr-row:hover{background:#f8fafc}
+button{font-family:inherit}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
@@ -1701,6 +1717,7 @@ function renderCaseProfile(c, panel){
     '<div class="ph-n">'+c.name+'</div>'+
     '<div class="ph-s">'+c.ref+' &middot; '+c.visa+'</div>'+
     '<button onclick="editCaseProfile(\''+(c.case_ref||c.ref||'')+'\')" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Edit</button>'+
+    delBtnHtml('case',(c.case_ref||c.ref||''))+
     '</div>'+
     '<div class="pg4">'+
     '<div class="pc"><div class="pl">Case Details</div>'+
@@ -1800,6 +1817,7 @@ function renderFinalisedProfile(f, panel){
     '<div class="ph-n">'+(f.client_name||f.name||'')+'</div>'+
     '<div class="ph-s">'+(f.case_ref||'')+' &middot; '+(f.visa_type||'')+' &middot; <span style="background:#f0fdf4;color:#16a34a;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700">Finalised</span></div>'+
     '<button onclick="editFinProfile(\''+(f.case_ref||'')+'\')" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Edit</button>'+
+    delBtnHtml('finalised',(f.case_ref||''))+
     '</div>'+
     '<div class="pg4">'+
     '<div class="pc"><div class="pl">Case Details</div>'+
@@ -1828,6 +1846,7 @@ function renderLeadProfile(l, panel){
     '<div class="ph-n">'+l.name+'</div>'+
     '<div class="ph-s">'+(l.id||'')+' &middot; Lead &middot; '+(l.visa||'Visa TBC')+'</div>'+
     '<button onclick="editLeadProfile(\''+(l.id||'')+'\')" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Edit</button>'+
+    delBtnHtml('lead',(l.id||''))+
     '</div>'+
     '<div class="pg4">'+
     '<div class="pc"><div class="pl">Lead Details</div>'+
@@ -1875,6 +1894,7 @@ function renderStuProfile(s, panel){
     '<div class="ph-n">'+s.name+'</div>'+
     '<div class="ph-s">'+s.id+' &middot; Student &middot; '+stbdg(s.status)+'</div>'+
     '<button onclick="editStuProfile(\''+(s.id||'')+'\')" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Edit</button>'+
+    delBtnHtml('student',(s.id||''))+
     '</div>'+
     '<div class="pg4">'+
     '<div class="pc"><div class="pl">Personal</div>'+
@@ -2101,6 +2121,66 @@ async function saveFinProfile(ref){
   showMsg(ok?'Changes saved':'Saved locally — sync issue', ok?'ok':'err');
   rDash(); rClients();
   var p=document.getElementById('cl-profile'); if(p) renderFinalisedProfile(f,p);
+}
+
+// ── DELETE CLIENT (all records) ──
+async function supaDelWhere(tbl, col, val){
+  try{
+    var r=await fetch(SUPA.url+'/rest/v1/'+tbl+'?'+col+'=eq.'+encodeURIComponent(val),{method:'DELETE',headers:supaHeaders()});
+    return r.ok;
+  }catch(e){ return false; }
+}
+async function deleteClient(type, id){
+  // Resolve display name + what will be removed
+  var name='', extra='';
+  if(type==='case'){ var c=CASES.find(function(x){return (x.case_ref||x.ref)===id;}); if(!c) return; name=c.name||c.client_name||id;
+    if((window.__finalised||[]).some(function(f){return f.case_ref===id;})) extra='\n- Finalised record';
+  } else if(type==='lead'){ var l=aLeads.find(function(x){return x.id===id;}); if(!l) return; name=l.name||id;
+  } else if(type==='student'){ var s=aStu.find(function(x){return x.id===id;}); if(!s) return; name=s.name||id;
+  } else if(type==='finalised'){ var f=(window.__finalised||[]).find(function(x){return x.case_ref===id;}); if(!f) return; name=f.client_name||f.name||id;
+    if(CASES.some(function(x){return (x.case_ref||x.ref)===id;})) extra='\n- Case record';
+  } else return;
+
+  if(!confirm('DELETE '+name+' ('+id+')?\n\nThis permanently removes:\n- The '+type+' record'+extra+'\n- All file notes\n- All due dates / tasks\n\nThis CANNOT be undone.')) return;
+  var typed=prompt('To confirm, type DELETE (in capitals):');
+  if(typed!=='DELETE'){ showMsg('Deletion cancelled','info'); return; }
+
+  showMsg('Deleting '+name+'...','info');
+  var ok=true;
+
+  // Main + twin rows
+  if(type==='case'||type==='finalised'){
+    ok = await supaDelWhere('cases','ref',id) && ok;
+    ok = await supaDelWhere('finalised','case_ref',id) && ok;
+  } else if(type==='lead'){
+    ok = await supaDelWhere('leads','id',id) && ok;
+  } else if(type==='student'){
+    ok = await supaDelWhere('students','id',id) && ok;
+  }
+  // Related records (by ref)
+  ok = await supaDelWhere('file_notes','ref',id) && ok;
+  ok = await supaDelWhere('due_dates','ref',id) && ok;
+  if(type==='lead') ok = await supaDelWhere('due_dates','ref','LEAD-'+id) && ok;
+
+  // Memory cleanup
+  for(var i=CASES.length-1;i>=0;i--){ if((CASES[i].case_ref||CASES[i].ref)===id) CASES.splice(i,1); }
+  for(var i=aLeads.length-1;i>=0;i--){ if(aLeads[i].id===id) aLeads.splice(i,1); }
+  for(var i=aStu.length-1;i>=0;i--){ if(aStu[i].id===id) aStu.splice(i,1); }
+  window.__finalised=(window.__finalised||[]).filter(function(f){return f.case_ref!==id;});
+  localStorage.setItem('oi_fin',JSON.stringify(window.__finalised));
+  for(var i=aFN.length-1;i>=0;i--){ if(aFN[i].ref===id) aFN.splice(i,1); }
+  localStorage.setItem('oi_fn',JSON.stringify(aFN));
+  window.__dueDates=(window.__dueDates||[]).filter(function(d){return d.ref!==id && d.ref!==('LEAD-'+id);});
+  localStorage.setItem('oi_dd',JSON.stringify(window.__dueDates));
+
+  // Refresh UI
+  var panel=document.getElementById('cl-profile');
+  if(panel){ panel.style.display='none'; panel.innerHTML=''; }
+  rDash(); rClients();
+  showMsg(ok? name+' and all records deleted' : name+' deleted locally — some records may not have synced', ok?'ok':'err');
+}
+function delBtnHtml(type,id){
+  return '<button onclick="deleteClient(\''+type+'\',\''+escA(id)+'\')" style="position:absolute;top:12px;right:70px;background:rgba(220,38,38,.85);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer" title="Delete this client and all records">Delete</button>';
 }
 
 // ── SMART NOTE SEARCH ──
